@@ -10,7 +10,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
   import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
   
   const firebaseConfig = {
     apiKey: "AIzaSyB7e1IpR2l0wvxPE0vdkUGXO6PT74cKSu4",
@@ -38,6 +38,8 @@
   window.onSnapshot = onSnapshot;
   window.orderBy = orderBy;
   window.serverTimestamp = serverTimestamp;
+  window.doc = doc;
+  window.deleteDoc = deleteDoc;
 
   initializeAppState();
 </script>
@@ -85,7 +87,7 @@
     align-items: flex-start;
     min-height: 100vh;
     margin: 0;
-    padding: 60px 20px;
+    padding: 30px 20px; /* <-- DISTÂNCIA ALTERADA AQUI */
     box-sizing: border-box;
     transition: background-color 0.4s, color 0.4s;
     overflow-x: hidden;
@@ -136,7 +138,17 @@
   body.light-mode .theme-toggle-button .icon-moon { opacity: 0; transform: rotate(90deg); }
 
   #login-view { text-align: center; padding: 60px 20px; }
-  #login-view::before { content: '🛡️'; font-size: 4rem; display: block; margin-bottom: 20px; filter: grayscale(0%);}
+  
+  .login-logo {
+    width: 250px;
+    height: auto;
+    margin: 0 auto 30px auto;
+  }
+
+  body:not(.light-mode) .login-logo {
+     /* filter: invert(1) brightness(2); */
+  }
+
   #login-view h2 { margin-bottom: 15px; font-size: 2.25rem; }
   #login-view p { color: var(--secondary-text-color); margin-bottom: 40px; max-width: 450px; margin-left: auto; margin-right: auto; line-height: 1.6;}
   .google-login-button {
@@ -149,9 +161,6 @@
   .google-login-button:hover { transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25); }
   .google-login-button svg { width: 24px; height: 24px; margin-right: 15px; }
 
-  /********************************************/
-  /************ INÍCIO DA CORREÇÃO 1 ************/
-  /********************************************/
   .app-header { 
     display: flex; 
     justify-content: space-between; 
@@ -159,12 +168,9 @@
     margin-bottom: 40px; 
     padding-bottom: 20px; 
     border-bottom: 1px solid var(--border-color);
-    padding-right: 60px; /* Adicionado para dar espaço ao botão de tema */
+    padding-right: 60px;
     position: relative;
   }
-  /********************************************/
-  /************* FIM DA CORREÇÃO 1 **************/
-  /********************************************/
 
   .user-info { display: flex; align-items: center; }
   .user-info img { width: 44px; height: 44px; border-radius: 50%; margin-right: 15px; border: 2px solid var(--accent-color-2); }
@@ -194,9 +200,6 @@
     outline: none; border-color: var(--accent-color-1); box-shadow: 0 0 0 4px var(--shadow-glow);
   }
   
-  /********************************************/
-  /************ INÍCIO DA CORREÇÃO 2 ************/
-  /********************************************/
   .file-input-wrapper {
     position: relative;
     width: 100%;
@@ -210,11 +213,8 @@
     cursor: pointer;
     transition: all 0.3s;
     padding: 40px 20px;
-    box-sizing: border-box; /* Garante que a borda e o padding fiquem para dentro */
+    box-sizing: border-box;
   }
-  /********************************************/
-  /************* FIM DA CORREÇÃO 2 **************/
-  /********************************************/
 
   .file-input-wrapper.is-dragging, .file-input-wrapper:hover { border-color: var(--accent-color-1); background-color: var(--surface-color); transform: scale(1.02); }
   .file-input-wrapper::before { content: '🖼️'; font-size: 3rem; margin-bottom: 15px; filter: grayscale(50%); transition: filter 0.3s, transform 0.3s; }
@@ -287,14 +287,44 @@
   #history-section { margin-top: 50px; }
   #history-section h3 { text-align: center; color: var(--secondary-text-color); margin-bottom: 25px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.5px; }
   .history-list { list-style: none; padding: 0; max-height: 400px; overflow-y: auto; }
+  
   .history-item {
-    background-color: var(--input-color); padding: 20px; border-radius: 12px; margin-bottom: 12px;
-    cursor: pointer; transition: all 0.3s; display: flex; justify-content: space-between; align-items: center;
-    border-left: 5px solid transparent;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    padding: 0 0 0 20px;
+    border-radius: 12px; 
+    margin-bottom: 12px;
+    background-color: var(--input-color);
   }
-  .history-item:hover { background-color: var(--surface-color); border-left-color: var(--accent-color-1); transform: translateX(8px); box-shadow: 0 4px 15px var(--shadow-color); }
-  .history-item span { font-weight: 500; font-size: 1rem; }
-  .history-item time { font-size: 0.85rem; color: var(--secondary-text-color); }
+  .history-item-content {
+    flex-grow: 1;
+    cursor: pointer;
+    padding: 20px 0;
+  }
+  .delete-history-button {
+    background-color: transparent;
+    border: none;
+    border-left: 1px solid var(--border-color);
+    color: var(--secondary-text-color);
+    width: 60px;
+    height: 100%;
+    cursor: pointer;
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+    border-radius: 0 12px 12px 0;
+  }
+  .delete-history-button:hover {
+    background-color: var(--danger-color);
+    color: #fff;
+    transform: scale(1.05);
+  }
 
   #loading-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -311,6 +341,64 @@
   }
   #loading-overlay p { color: #fff; margin-top: 25px; font-weight: 500; font-size: 1.1rem; }
 
+  @media (max-width: 600px) {
+    body {
+      padding: 30px 15px;
+    }
+    .container {
+      padding: 20px;
+    }
+    h2, #login-view h2 {
+      font-size: 1.9rem;
+      margin-bottom: 30px;
+    }
+    #login-view {
+      padding: 30px 10px;
+    }
+    .login-logo {
+      width: 120px;
+    }
+    
+    .main-button, .google-login-button {
+      padding: 16px 20px;
+      font-size: 1rem;
+    }
+    #resultado h3 {
+      font-size: 1.2rem;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    .report-section {
+      padding: 20px;
+    }
+    .summary-item span {
+      font-size: 1.2rem;
+    }
+    .total-cost {
+      font-size: 1.5rem;
+    }
+    .history-item {
+      padding: 0;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+    }
+    .history-item-content {
+      padding: 15px;
+    }
+    .delete-history-button {
+      width: 100%;
+      border-radius: 0 0 12px 12px;
+      border-left: none;
+      border-top: 1px solid var(--border-color);
+      padding: 10px 0;
+      font-size: 1rem;
+      height: auto;
+    }
+    .delete-history-button:hover {
+        transform: none;
+    }
+  }
 </style>
 </head>
 <body>
@@ -327,6 +415,8 @@
   </button>
   
   <div id="login-view">
+    <img src="/images/fleet.png" alt="Logo da Empresa" class="login-logo">
+    
     <h2>Bem-vindo à Plataforma de Análise de Sinistros</h2>
     <p>Faça login com a sua conta Google para aceder ao histórico e guardar as suas análises.</p>
     <button class="google-login-button" onclick="signInWithGoogle()">
@@ -388,7 +478,6 @@
 </div>
 
 <script>
-  // O seu código JavaScript permanece o mesmo
   let currentUser = null;
   let recognition = null;
 
@@ -563,7 +652,7 @@
         formData.append('ano', ano);
         formData.append('relato_motorista', relato);
 
-        const response = await fetch('http://127.0.0.1:8000/analisar', {
+        const response = await fetch('https://ecar-agente-backend.onrender.com/analisar', {
             method: 'POST',
             body: formData,
         });
@@ -604,6 +693,32 @@
     }
   }
 
+  async function deleteReport(reportId) {
+    if (!currentUser || !reportId) {
+      console.error("Utilizador não autenticado ou ID do relatório em falta.");
+      return;
+    }
+
+    try {
+      const reportRef = window.doc(window.db, 'analyses', currentUser.uid, 'reports', reportId);
+      await window.deleteDoc(reportRef);
+    } catch (error) {
+      console.error("Erro ao excluir o relatório:", error);
+      alert("Não foi possível excluir o relatório. Tente novamente.");
+    }
+  }
+
+  document.getElementById('history-list').addEventListener('click', (event) => {
+    if (event.target.classList.contains('delete-history-button')) {
+      const reportItem = event.target.closest('.history-item');
+      const reportId = reportItem.dataset.id;
+
+      if (confirm("Tem a certeza de que deseja excluir esta análise? Esta ação não pode ser desfeita.")) {
+        deleteReport(reportId);
+      }
+    }
+  });
+  
   function loadUserHistory(userId) {
     const historyList = document.getElementById('history-list');
     const historySection = document.getElementById('history-section');
@@ -622,16 +737,23 @@
           const report = doc.data();
           const li = document.createElement('li');
           li.classList.add('history-item');
+          li.dataset.id = doc.id;
+          
           li.innerHTML = `
-            <span>${report.carModel} - Dano ${report.analiseGeral.nivelDano}</span>
-            <time>${new Date(report.createdAt?.toDate()).toLocaleDateString()}</time>
+            <div class="history-item-content">
+              <span>${report.carModel} - Dano ${report.analiseGeral.nivelDano}</span>
+              <time>${new Date(report.createdAt?.toDate()).toLocaleDateString()}</time>
+            </div>
+            <button class="delete-history-button" aria-label="Excluir item">&times;</button>
           `;
-          li.onclick = () => {
+
+          li.querySelector('.history-item-content').onclick = () => {
             document.getElementById('resultado').innerHTML = gerarRelatorioHTML(report);
             document.getElementById('resultado').style.display = 'block';
             document.getElementById('botaoImprimir').style.display = 'block';
             window.scrollTo({ top: document.getElementById('resultado').offsetTop - 20, behavior: 'smooth' });
           };
+          
           historyList.appendChild(li);
         });
       }
