@@ -11,8 +11,7 @@ app = FastAPI(title="Vehicle Damage Analysis API")
 # --- CORS Middleware Configuration ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For production, restrict this to your frontend's domain
-    allow_credentials=True,
+    allow_origins=["https-agente-sinistro-frontend.onrender.com"],    allow_credentials=True,
     allow_methods=["POST"],
     allow_headers=["*"],
 )
