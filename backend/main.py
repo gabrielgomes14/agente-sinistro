@@ -8,25 +8,18 @@ from typing import Dict, Any, List
 # Initialize the FastAPI application
 app = FastAPI(title="Vehicle Damage Analysis API")
 
-# --- CORS Middleware Configuration (AJUSTADO PARA PRODUÇÃO) ---
-origins = [
-    "https://ecar-agente.web.app", # Domínio do seu frontend
-    "http://127.0.0.1:5500",     # Para desenvolvimento local
-    "http://localhost:5500",
-    "http://localhost:8080",
-]
-
+# --- CORS Middleware Configuration ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # For production, restrict this to your frontend's domain
     allow_credentials=True,
     allow_methods=["POST"],
     allow_headers=["*"],
 )
 
-# --- Gemini API Configuration (MODELO ATUALIZADO) ---
+# --- Gemini API Configuration ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-# Usando o modelo Flash mais recente recomendado
+# Using the latest recommended model for this kind of task
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 # --- Helper Function ---
@@ -39,10 +32,10 @@ def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
     finally:
         file.file.close()
 
-# --- API Endpoint ---
+# --- API Endpoint (Corrected) ---
 @app.post("/analisar", summary="Analyze Vehicle Damage Images")
 async def analisar(
-    imagem: List[UploadFile] = Form(...),
+    imagem: List[UploadFile] = Form(...), # Now accepts a list of images
     localizacao: str = Form(...),
     modelo: str = Form(...),
     ano: str = Form(...),
@@ -134,3 +127,4 @@ async def analisar(
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"
         )
+
