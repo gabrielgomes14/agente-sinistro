@@ -652,7 +652,7 @@
         formData.append('ano', ano);
         formData.append('relato_motorista', relato);
 
-        const response = await fetch('https://ecar-agente-backend.onrender.com/analisar', {
+        const response = await fetch('https://agente-sinistro-api.onrender.com/analisar', {
             method: 'POST',
             body: formData,
         });
