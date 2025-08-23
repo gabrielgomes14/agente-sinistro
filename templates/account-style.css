@@ -1,0 +1,336 @@
+/* Modern SaaS Login Form - Refined Version */
+
+/* --- CSS Variables for Easy Theming --- */
+:root {
+    --primary-color: #ff8533;
+    --primary-hover: #ff8533;
+    --background-color: #f7f8fa;
+    --card-background: #ffffff;
+    --text-primary: #1a1f36;
+    --text-secondary: #6b7385;
+    --text-placeholder: #8792a2;
+    --border-color: #e3e8ee;
+    --error-color: #f56565;
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* --- Base & Body Styles --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    line-height: 1.6;
+}
+
+/* --- Login Container & Card --- */
+.login-container {
+    width: 100%;
+    max-width: 400px;
+}
+
+.login-card {
+    background: var(--card-background);
+    border-radius: 12px;
+    padding: 48px 40px;
+    /* Softer, more modern shadow */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--border-color);
+}
+
+/* --- Header --- */
+.login-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.logo {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.login-header h1 {
+    color: var(--text-primary);
+    font-size: 1.5rem; /* 24px */
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.login-header p {
+    color: var(--text-secondary);
+    font-size: 0.9375rem; /* 15px */
+}
+
+/* --- Input Groups with Floating Labels --- */
+.input-group {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.input-group input {
+    width: 100%;
+    background: var(--card-background);
+    border: 1px solid var(--border-color);
+    border-radius: 8px; /* Slightly more rounded */
+    padding: 16px 14px;
+    color: var(--text-primary);
+    font-size: 1rem; /* 16px */
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    font-family: inherit;
+}
+
+.input-group input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 91, 255, 0.15);
+}
+
+.input-group input::placeholder {
+    color: transparent;
+}
+
+.input-group label {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-placeholder);
+    font-size: 1rem;
+    pointer-events: none;
+    transition: all 0.2s ease;
+    background: var(--card-background);
+    padding: 0 4px;
+}
+
+/* Floating label animation */
+.input-group input:focus + label,
+.input-group input:not(:placeholder-shown) + label {
+    top: 0;
+    font-size: 0.75rem; /* 12px */
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.input-group input:not(:focus):not(:placeholder-shown) + label {
+    color: var(--text-secondary);
+}
+
+/* --- Password Toggle --- */
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-placeholder);
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: var(--primary-color);
+}
+
+/* --- Form Options (Remember me & Forgot password) --- */
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 28px;
+    font-size: 0.875rem; /* 14px */
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.checkbox-container input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 4px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.checkmark svg {
+    stroke: white;
+    visibility: hidden;
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.checkbox-container input[type="checkbox"]:checked + .checkmark svg {
+    visibility: visible;
+}
+
+.forgot-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+}
+
+/* --- Submit & Social Buttons --- */
+.submit-btn, .social-btn {
+    width: 100%;
+    border-radius: 8px;
+    padding: 14px 20px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.submit-btn {
+    background: var(--primary-color);
+    color: #ffffff;
+    border: none;
+    margin-bottom: 24px;
+}
+
+.submit-btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px); /* Subtle lift effect */
+    box-shadow: 0 4px 12px rgba(99, 91, 255, 0.2);
+}
+
+.social-btn {
+    background: var(--card-background);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.social-btn:hover {
+    border-color: #d1d9e0;
+    background: #f8f9fa;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* --- Divider --- */
+.divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--text-placeholder);
+    font-size: 0.75rem; /* 12px */
+    font-weight: 500;
+    text-transform: uppercase;
+    margin: 24px 0;
+}
+
+.divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.divider:not(:empty)::before {
+    margin-right: 1em;
+}
+
+.divider:not(:empty)::after {
+    margin-left: 1em;
+}
+
+/* --- Signup Link --- */
+.signup-link {
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.signup-link a {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.signup-link a:hover {
+    text-decoration: underline;
+}
+
+/* --- Error Message --- */
+.error-message {
+    color: var(--error-color);
+    font-size: 0.8125rem; /* 13px */
+    font-weight: 500;
+    text-align: left;
+    min-height: 20px;
+    margin-top: -16px; /* Position it closer to the input */
+    margin-bottom: 16px;
+    display: block;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 480px) {
+    body {
+        padding: 0; /* Remove padding for edge-to-edge card */
+        align-items: flex-start; /* Alinha o card no topo */
+    }
+    
+    .login-container {
+        max-width: 100%;
+        padding: 0;
+    }
+
+    .login-card {
+        padding: 40px 24px; /* Mais espaço vertical, menos horizontal */
+        border-radius: 0; /* Card de ponta a ponta */
+        border: none; /* Remove a borda */
+        box-shadow: none; /* Remove a sombra para um look mais flat */
+        min-height: 100vh; /* Ocupa a tela toda */
+        display: flex; /* Adicionado para centralizar o conteúdo verticalmente */
+        flex-direction: column; /* Adicionado para centralizar o conteúdo verticalmente */
+        justify-content: center; /* Adicionado para centralizar o conteúdo verticalmente */
+    }
+    
+    .login-header h1 {
+        font-size: 1.375rem;
+    }
+    
+    .form-options {
+        /* Mantém os itens em linha, mas permite quebra se necessário */
+        flex-wrap: wrap; 
+        gap: 8px; /* Espaço caso quebre a linha */
+    }
+}

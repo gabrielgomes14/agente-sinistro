@@ -1,4 +1,4 @@
-#!/mnt/c/Users/GAMER/agente-sinistro/agente-sinistro/.venv/bin/python
+#!/mnt/c/Users/GAMER/agente-ecar/agente-sinistro/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

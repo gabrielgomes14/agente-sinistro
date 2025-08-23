@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
+    integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+
+  <link rel="stylesheet" href="style.css" type="text/css" />
+
+  <link href="https://unpkg.com/ionicons@4.2.0/dist/css/ionicons.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900" rel="stylesheet">
+
+  <title>Fleet | Análise de Sinistros com IA</title>
+
+  <style>
+    /* --- CONFIGURAÇÕES GLOBAIS E VARIÁVEIS --- */
+    :root {
+      --primary-color: #ff8533;
+      --dark-color: #2c3e50;
+      --light-gray: #f8f9fa;
+      --white-color: #ffffff;
+      --border-color: #e9ecef;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      overflow-x: hidden;
+      /* Adiciona espaçamento no topo para compensar a navbar fixa */
+      padding-top: 75px;
+    }
+
+    section {
+      padding: 80px 0;
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+        font-weight: 700;
+    }
+    
+    p {
+        line-height: 1.7;
+    }
+
+    .btn {
+        border-radius: 50px;
+        padding: 12px 30px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-regular {
+        background-color: var(--primary-color);
+        color: var(--white-color);
+    }
+
+    .btn-regular:hover {
+        background-color: #e6732e;
+        color: var(--white-color);
+        transform: translateY(-3px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    
+    .btn-demo-small {
+       background-color: var(--primary-color) !important;
+       color: var(--white-color) !important;
+       border: none;
+    }
+
+
+    /* --- ESTILOS DA NAVBAR --- */
+    .custom-navbar {
+        background-color: var(--white-color);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        padding: 15px 0;
+    }
+    
+    .nav-logo-desktop {
+        max-height: 45px;
+    }
+    
+    .custom-navbar .nav-link {
+        font-weight: 500;
+        color: var(--dark-color);
+    }
+
+    .navbar-toggler {
+      border: none;
+      padding: 0;
+    }
+
+    .navbar-toggler:focus {
+      outline: none;
+      box-shadow: none;
+    }
+
+    .navbar-toggler .icon {
+      font-size: 2.2rem;
+      color: var(--dark-color);
+    }
+    
+    
+    /* --- SEÇÕES ESPECÍFICAS --- */
+
+    /* HERO */
+    #hero {
+        padding-top: 40px;
+        padding-bottom: 40px;
+    }
+    #hero h1 {
+        font-size: 2.8rem;
+        font-weight: 900;
+        margin-bottom: 1.5rem;
+    }
+    #hero .lead {
+        font-size: 1.2rem;
+        color: #555;
+        margin-bottom: 2rem;
+    }
+
+    /* FEATURES */
+    #features .content-box span {
+        color: var(--primary-color);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    #features .content-box h2 {
+        margin-top: 0.5rem;
+    }
+    
+    /* HOW IT WORKS */
+    .feature-box {
+        padding: 30px;
+        border-radius: 10px;
+        background-color: var(--white-color);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+    .feature-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+
+    /* TESTIMONIALS */
+    .testimonial-box {
+        padding: 30px;
+        background-color: var(--light-gray);
+        border-left: 5px solid var(--primary-color);
+        border-radius: 8px;
+        height: 100%;
+    }
+    .testimonial-box .profile-picture {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background-size: cover;
+        background-position: center;
+    }
+    .review-one { /* Adicionar imagens aqui */
+        background-image: url('https://via.placeholder.com/100');
+    }
+    .testimonial-box .rating {
+        color: #f39c12;
+    }
+
+    /* CALL TO ACTION */
+    #call-to-action {
+        position: relative;
+        color: var(--white-color);
+        padding: 120px 0;
+        overflow: hidden;
+    }
+
+    #bgvid {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        min-width: 100%;
+        min-height: 100%;
+        width: auto;
+        height: auto;
+        transform: translateX(-50%) translateY(-50%);
+        z-index: -2;
+    }
+    .video-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(44, 62, 80, 0.7); /* Overlay mais escuro para legibilidade */
+        z-index: -1;
+    }
+    #call-to-action .container {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* FOOTER */
+    footer {
+        background: var(--dark-color);
+        color: #ccc;
+        padding: 60px 0 20px 0;
+    }
+    footer h5 {
+        color: var(--white-color);
+        margin-bottom: 1.5rem;
+    }
+    footer ul {
+        list-style: none;
+        padding: 0;
+    }
+    footer ul li a {
+        color: #ccc;
+        margin-bottom: 10px;
+        display: inline-block;
+    }
+    footer ul li a:hover {
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+    .divider {
+        border-top: 1px solid #444;
+        margin: 40px 0;
+    }
+    .social-icons a {
+        color: #ccc;
+        font-size: 1.5rem;
+        margin-right: 20px;
+    }
+    .social-icons a:hover {
+        color: var(--primary-color);
+    }
+
+
+    /* --- MEDIA QUERIES PARA RESPONSIVIDADE --- */
+
+    /* TABLETS E TELAS MENORES (Ativa o menu hambúrguer) */
+    @media (max-width: 991.98px) {
+        .custom-navbar .navbar-collapse {
+            position: fixed;
+            top: 75px; /* Altura da navbar */
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 75px);
+            background-color: var(--white-color);
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            transform: translateY(-120%);
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .custom-navbar .navbar-collapse.show {
+            transform: translateY(0);
+        }
+
+        .custom-navbar .navbar-nav {
+            width: 100%;
+        }
+
+        .custom-navbar .nav-item {
+            margin-bottom: 20px;
+        }
+        
+        .custom-navbar .nav-link {
+            font-size: 1.5rem;
+            padding: 10px 0;
+        }
+
+        .custom-navbar .ml-auto {
+            border-top: 1px solid var(--border-color);
+            margin-top: 30px;
+            padding-top: 30px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .custom-navbar .ml-auto .nav-item {
+            width: 100%;
+            max-width: 300px;
+        }
+        
+        .custom-navbar .ml-auto .nav-link {
+            width: 100%;
+        }
+    }
+    
+    /* CELULARES */
+    @media (max-width: 767.98px) {
+        section {
+            padding: 60px 0;
+        }
+
+        h1, #hero h1 {
+            font-size: 2.2rem;
+        }
+        
+        h2 {
+            font-size: 1.8rem;
+        }
+
+        /* AJUSTE DA ORDEM E ALINHAMENTO NA SEÇÃO HERO */
+        #hero .row {
+            flex-direction: column-reverse; /* Inverte a ordem: imagem em cima, texto embaixo */
+        }
+
+        .hero-content {
+            text-align: center; /* Centraliza o texto */
+            margin-top: 40px;  /* Adiciona espaço acima do texto */
+        }
+        
+        /* AJUSTE NA SEÇÃO FEATURES */
+        #features .row {
+            flex-direction: column-reverse;
+        }
+        #features .content-box {
+            text-align: center;
+        }
+        #features img {
+            margin-bottom: 30px;
+        }
+        
+        .title-block {
+            text-align: center;
+        }
+
+        /* AJUSTES NO FOOTER */
+        footer .col-md-3,
+        footer .col-md-6 {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .social-icons {
+            justify-content: center;
+            display: flex;
+        }
+        
+        .text-md-right {
+            text-align: center !important;
+        }
+    }
+  </style>
+</head>
+
+<body>
+
+  <nav class="navbar navbar-expand-lg fixed-top custom-navbar">
+    <div class="container">
+      <a class="navbar-brand" href="#hero">
+        <img src="images/fleet.png" class="nav-logo-desktop" alt="Company Logo">
+      </a>
+      
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown"
+        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="icon ion-md-menu"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNavDropdown">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="#hero">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#features">Funcionalidades</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#testimonials">Depoimentos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#how-it-works">Como Funciona</a>
+          </li>
+        </ul>
+
+        <ul class="navbar-nav ml-auto align-items-center">
+          <li class="nav-item">
+            <a class="nav-link" href="account.html">Login</a>
+          </li>
+          <li class="nav-item ml-lg-3">
+            <a class="nav-link btn btn-demo-small" href="signup.html">Criar conta</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+
+    <section id="hero">
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col-lg-5 col-md-6">
+            <img src="images/Imagem2.png" class="img-fluid" alt="Aplicativo em um celular">
+          </div>
+          <div class="col-lg-7 col-md-6 hero-content">
+            <h1>Análise de Sinistros em Segundos, não em Horas.</h1>
+            <p class="lead">Nossa Inteligência Artificial gera relatórios detalhados de danos, peças e custos com
+              precisão cirúrgica. Transforme sua operação agora.</p>
+            <a href="#features" class="btn btn-regular">Descubra como</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="bg-light">
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <div class="content-box">
+              <span>Relatórios com IA</span>
+              <h2>Insights Visuais para Decisões Rápidas</h2>
+              <p>Nossa IA identifica as peças danificadas, estima custos de reparo e mão de obra, e prevê o tempo para
+                o conserto. Tudo a partir de simples fotos.</p>
+              <a href="#" class="btn btn-regular">Solicitar Demonstração</a>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <img src="images/b1162e84-3dca-4312-8818-cd2918b2cc48.png" class="img-fluid rounded shadow-lg"
+              alt="Relatório de danos">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works">
+        <div class="container">
+          <div class="title-block text-center mb-5">
+            <h2>Nossa Análise em Apenas 3 Passos</h2>
+            <p>Transformamos um processo complexo em uma solução simples e rápida.</p>
+          </div>
+          <div class="row">
+            <div class="col-md-4 mb-4">
+              <div class="feature-box text-center">
+                <h3>1. Envio das Fotos</h3>
+                <p>O vistoriador ou o próprio cliente envia as fotos dos danos do veículo através de nosso aplicativo ou portal web de forma simples e intuitiva.</p>
+              </div>
+            </div>
+            <div class="col-md-4 mb-4">
+              <div class="feature-box text-center">
+                <h3>2. Análise por IA</h3>
+                <p>Nossa inteligência artificial processa as imagens, identifica cada peça danificada, e calcula a estimativa de custo para peças, mão de obra e pintura.</p>
+              </div>
+            </div>
+            <div class="col-md-4 mb-4">
+              <div class="feature-box text-center">
+                <h3>3. Relatório Detalhado</h3>
+                <p>Em segundos, um relatório completo e de fácil entendimento é gerado, permitindo que sua equipe tome a decisão certa com agilidade e confiança.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    <section id="testimonials" class="bg-light">
+      <div class="container">
+        <div class="title-block text-center mb-5">
+          <h2>O que nossos clientes dizem</h2>
+          <p>Veja como líderes do setor estão otimizando suas operações com nossa plataforma.</p>
+        </div>
+        <div class="row">
+          <div class="col-lg-6 mb-4">
+            <div class="testimonial-box">
+              <div class="row personal-info align-items-center">
+                <div class="col-md-2 col-3">
+                  <div class="profile-picture review-one"></div>
+                </div>
+                <div class="col-md-10 col-9">
+                  <h6>Juliana Martins <span class="rating">5 <i class="icon ion-md-star"></i></span></h6>
+                  <small>Gerente de Sinistros | Seguradora Alfa</small>
+                </div>
+              </div>
+              <p class="mt-3">"A plataforma reduziu nosso tempo de análise de 3 horas para menos de 5 minutos. A
+                precisão dos relatórios é impressionante e já evitou milhares em pagamentos indevidos."</p>
+            </div>
+          </div>
+          <div class="col-lg-6 mb-4">
+            <div class="testimonial-box">
+              <div class="row personal-info align-items-center">
+                <div class="col-md-2 col-3">
+                  <div class="profile-picture review-one"></div> </div>
+                <div class="col-md-10 col-9">
+                  <h6>Ricardo Alves <span class="rating">5 <i class="icon ion-md-star"></i></span></h6>
+                  <small>Diretor de Operações | Frota Logística Total</small>
+                </div>
+              </div>
+              <p class="mt-3">"Gerenciar os danos em nossa frota era um pesadelo logístico. Com esta ferramenta, temos
+                orçamentos padronizados e confiáveis em minutos, agilizando os reparos e a volta dos veículos à
+                operação."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="call-to-action">
+      <video playsinline autoplay muted loop id="bgvid">
+        <source src="images/11326271-hd_1080_1920_60fps.mp4" type="video/mp4">
+      </video>
+      <div class="video-overlay"></div>
+      <div class="container text-center">
+        <div class="title-block">
+          <h2>Otimize sua operação e reduza custos agora.</h2>
+          <p class="lead my-4">Descubra como nossa IA pode aumentar a eficiência e a lucratividade da sua gestão de
+            sinistros.</p>
+          <a href="#" class="btn btn-regular">Comece o Teste Gratuito</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-3 col-6">
+          <h5>Produto</h5>
+          <ul>
+            <li><a href="#features">Funcionalidades</a></li>
+            <li><a href="#how-it-works">Como Funciona</a></li>
+            <li><a href="#">Segurança</a></li>
+            <li><a href="#">Integrações</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3 col-6">
+          <h5>Empresa</h5>
+          <ul>
+            <li><a href="#">Sobre Nós</a></li>
+            <li><a href="#">Carreiras</a></li>
+            <li><a href="#">Imprensa</a></li>
+            <li><a href="#">Contato</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3 col-6">
+          <h5>Recursos</h5>
+          <ul>
+            <li><a href="#">Blog</a></li>
+            <li><a href="#">Estudos de Caso</a></li>
+            <li><a href="#">Tutoriais em Vídeo</a></li>
+            <li><a href="#">Suporte</a></li>
+          </ul>
+        </div>
+        <div class="col-md-3 col-12 mt-4 mt-md-0">
+          <h5>Ecar fleet IA</h5>
+          <p>Análise de sinistros automotivos potencializada por Inteligência Artificial. Mais velocidade, precisão e
+            economia para sua operação.</p>
+          <p><a href="mailto:contato@fleetia.com" class="external-links">contato@fleetia.com</a></p>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <div class="col-md-6 col-12 social-icons">
+          <a href="#"><i class="icon ion-logo-facebook"></i></a>
+          <a href="#"><i class="icon ion-logo-instagram"></i></a>
+          <a href="#"><i class="icon ion-logo-twitter"></i></a>
+          <a href="#"><i class="icon ion-logo-youtube"></i></a>
+        </div>
+        <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
+          <small>2025 &copy; Ecar fleet. Todos os direitos reservados.</small>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+    integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+    crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
+    integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"
+    integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
+    crossorigin="anonymous"></script>
+</body>
+</html>

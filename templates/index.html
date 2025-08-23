@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Assistente de Frota IA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Text:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script type="module">
+      // Firebase SDK
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+      import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+      import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+      
+      const firebaseConfig = {
+        apiKey: "AIzaSyB7e1IpR2l0wvxPE0vdkUGXO6PT74cKSu4",
+        authDomain: "ecar-agente.firebaseapp.com",
+        projectId: "ecar-agente",
+        storageBucket: "ecar-agente.appspot.com",
+        messagingSenderId: "894019220547",
+        appId: "1:894019220547:web:af042385f29544e2a810f6",
+        measurementId: "G-1J4W027QZM"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const auth = getAuth(app);
+
+      window.db = db; window.auth = auth; window.signOut = signOut; window.collection = collection;
+      window.addDoc = addDoc; window.query = query; window.onSnapshot = onSnapshot;
+      window.orderBy = orderBy; window.serverTimestamp = serverTimestamp; window.doc = doc; 
+      window.deleteDoc = deleteDoc; window.onAuthStateChanged = onAuthStateChanged;
+
+      document.addEventListener('DOMContentLoaded', () => {
+        handleAuthState();
+        loadUserHistory();
+        startNewConversation();
+        document.getElementById("btn-nova-conversa")
+          .addEventListener("click", startNewConversation);
+      });
+
+      // ==============================================
+      // 1. CONFIGURAÇÃO E VARIÁVEIS GLOBAIS
+      // ==============================================
+      const BACKEND_URL = "https://agente-sinistro-api.onrender.com";
+      const chatLog = document.getElementById('chat-log');
+      const chatArea = document.getElementById('chat-area');
+      const chatInput = document.getElementById('chat-input');
+      const imageUploadBtn = document.getElementById('image-upload-btn');
+      const hiddenFileInput = document.getElementById('hidden-file-input');
+      const themeToggleBtn = document.getElementById('theme-toggle');
+      const sidebarToggleBtnInside = document.getElementById('sidebar-toggle-btn-inside');
+      const sidebarToggleBtnOutside = document.getElementById('sidebar-toggle-btn-outside');
+      const micBtn = document.getElementById('mic-btn');
+      const userPhotoEl = document.getElementById('user-photo');
+      const userNameEl = document.getElementById('user-name');
+
+      let conversationState = {};
+      let recognition = null;
+      let isWelcoming = false;
+
+      const analysisQuestions = [
+          { key: 'cidade', text: 'Entendido. Para qual <strong>Cidade / Estado</strong> devemos fazer a cotação?' },
+          { key: 'modelo', text: 'Ótimo. Qual o <strong>Modelo e Ano do Carro</strong>?' },
+          { key: 'relato', text: 'Por último, descreva o <strong>Relato do Motorista</strong> sobre o que aconteceu.' }
+      ];
+
+      // ==============================================
+      // 2. FUNÇÕES DO CHAT
+      // ==============================================
+      function addMessage(sender, content, isHtml = false) {
+          if (isWelcoming) {
+              chatLog.innerHTML = '';
+              isWelcoming = false;
+          }
+          chatArea.classList.remove('is-welcoming');
+          const existingTyping = document.getElementById('typing-indicator');
+          if(existingTyping) existingTyping.remove();
+          const messageDiv = document.createElement('div');
+          messageDiv.className = `message ${sender}`;
+          const contentDiv = document.createElement('div');
+          contentDiv.className = 'message-content';
+          if (isHtml) { contentDiv.innerHTML = content; } else { contentDiv.textContent = content; }
+          messageDiv.appendChild(contentDiv);
+          chatLog.appendChild(messageDiv);
+          chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function startNewConversation() {
+          chatLog.innerHTML = '';
+          chatArea.classList.add('is-welcoming');
+          isWelcoming = true;
+          conversationState = { mode: 'qa', currentStep: 0, isExpectingAnswer: false, collectedData: {} };
+          const welcomeHTML = `<div class="welcome-message"><img src="images/fleet.png" alt="Welcome Logo"></div>`; // Placeholder image
+          chatLog.innerHTML = welcomeHTML;
+          chatInput.value = '';
+          chatInput.placeholder = 'Pergunte sobre gestão de frotas ou envie uma imagem...';
+          chatInput.disabled = false;
+      }
+
+      function showTypingIndicator() {
+          if (isWelcoming) { chatLog.innerHTML = ''; isWelcoming = false; }
+          chatArea.classList.remove('is-welcoming');
+          if(document.getElementById('typing-indicator')) return;
+          const indicatorHTML = `<div class="message ai" id="typing-indicator"><div class="message-content typing-indicator"><span></span><span></span><span></span></div></div>`;
+          chatLog.insertAdjacentHTML('beforeend', indicatorHTML);
+          chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      // ==============================================
+      // 3. LÓGICA DOS MODOS DE CONVERSA
+      // ==============================================
+      async function sendFleetManagementQuery(userText) {
+          addMessage('user', userText);
+          showTypingIndicator();
+          chatInput.disabled = true;
+          try {
+              const response = await fetch(`${BACKEND_URL}/chat`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ question: userText })
+              });
+              if (!response.ok) throw new Error(`Erro na comunicação com o servidor: ${response.statusText}`);
+              const data = await response.json();
+              addMessage('ai', data.answer);
+          } catch (error) {
+              console.error("Erro detalhado ao chamar o backend:", error);
+              addMessage('ai', `Desculpe, ocorreu um erro. Verifique o console do navegador (F12) para mais detalhes.`);
+          } finally {
+              chatInput.disabled = false;
+              chatInput.focus();
+          }
+      }
+
+      function startAnalysisFlow(files) {
+          conversationState.mode = 'analysis';
+          conversationState.collectedData.imagens = files;
+          chatLog.innerHTML = '';
+          isWelcoming = false;
+
+          let imageHTML = '<div class="uploaded-images-container">';
+          Array.from(files).forEach(file => {
+              imageHTML += `<img src="${URL.createObjectURL(file)}" class="uploaded-image" alt="Dano no veículo">`;
+          });
+          imageHTML += '</div>';
+
+          addMessage('user', imageHTML, true);
+          askNextAnalysisQuestion();
+      }
+
+      function askNextAnalysisQuestion() {
+          if (conversationState.currentStep < analysisQuestions.length) {
+              const question = analysisQuestions[conversationState.currentStep];
+              addMessage('ai', question.text, true);
+              chatInput.disabled = false;
+              chatInput.placeholder = 'Responda aqui e pressione Enter...';
+              chatInput.focus();
+              conversationState.isExpectingAnswer = true;
+          } else {
+              chatInput.disabled = true;
+              chatInput.placeholder = 'Todos os dados foram coletados.';
+              addMessage('ai', 'Obrigado. Reuni as informações. Clique para iniciar a análise completa.', true);
+              const btnHTML = `<button class="action-button" id="generate-report-btn">Analisar Sinistro</button>`;
+              addMessage('ai', btnHTML, true);
+              document.getElementById('generate-report-btn').onclick = () => {
+                  const btn = document.getElementById('generate-report-btn');
+                  btn.textContent = 'Analisando...'; btn.disabled = true;
+                  enviarDadosParaAnalise(conversationState.collectedData);
+              };
+          }
+      }
+
+      function processAnalysisAnswer(answer) {
+          if (!conversationState.isExpectingAnswer || !answer) return;
+          addMessage('user', answer);
+          const currentQuestionKey = analysisQuestions[conversationState.currentStep].key;
+          conversationState.collectedData[currentQuestionKey] = answer;
+          conversationState.currentStep++;
+          askNextAnalysisQuestion();
+      }
+
+      // ==============================================
+      // 4. EVENT LISTENERS E FUNCIONALIDADES EXTRA
+      // ==============================================
+      chatInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && chatInput.value.trim() !== '') {
+              const userText = chatInput.value.trim();
+              if (conversationState.mode === 'qa') { sendFleetManagementQuery(userText); } 
+              else if (conversationState.mode === 'analysis') { processAnalysisAnswer(userText); }
+              chatInput.value = '';
+          }
+      });
+
+      imageUploadBtn.addEventListener('click', () => hiddenFileInput.click());
+      hiddenFileInput.addEventListener('change', (event) => {
+          const files = event.target.files;
+          if (files && files.length > 0) {
+              conversationState = { mode: 'analysis', currentStep: 0, isExpectingAnswer: false, collectedData: {} };
+              startAnalysisFlow(files);
+          }
+      });
+
+      themeToggleBtn.addEventListener('click', () => document.body.classList.toggle('light-theme'));
+
+      function toggleSidebar() {
+          if(window.innerWidth <= 768) {
+              document.body.classList.toggle('sidebar-open');
+          } else {
+              document.body.classList.toggle('sidebar-collapsed');
+          }
+      }
+      sidebarToggleBtnInside.addEventListener('click', toggleSidebar);
+      sidebarToggleBtnOutside.addEventListener('click', toggleSidebar);
+
+      micBtn.addEventListener('click', () => {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if (!SpeechRecognition) {
+              alert("Seu navegador não suporta a funcionalidade de voz.");
+              return;
+          }
+          if (recognition && recognition.isRecording) {
+              recognition.stop();
+              return;
+          }
+          recognition = new SpeechRecognition();
+          recognition.lang = 'pt-BR';
+          recognition.continuous = false;
+          recognition.interimResults = true;
+
+          recognition.onstart = () => { recognition.isRecording = true; micBtn.classList.add('is-recording'); };
+          recognition.onend = () => { recognition.isRecording = false; micBtn.classList.remove('is-recording'); };
+          recognition.onerror = (event) => { console.error("Erro no reconhecimento de voz:", event.error); micBtn.classList.remove('is-recording'); };
+          
+          let final_transcript = '';
+          recognition.onresult = (event) => {
+              let interim_transcript = '';
+              for (let i = event.resultIndex; i < event.results.length; ++i) {
+                  if (event.results[i].isFinal) {
+                      final_transcript += event.results[i][0].transcript;
+                  } else {
+                      interim_transcript += event.results[i][0].transcript;
+                  }
+              }
+              chatInput.value = final_transcript || interim_transcript;
+              if(final_transcript) {
+                  recognition.stop();
+                  const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+                  chatInput.dispatchEvent(enterEvent);
+              }
+          };
+          recognition.start();
+      });
+
+      // ==============================================
+      // 5. LÓGICA DE BACKEND E FIREBASE (COM PDF)
+      // ==============================================
+
+      async function convertFilesToBase64(files) {
+          const base64Promises = Array.from(files).map(file => {
+              return new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.readAsDataURL(file);
+                  reader.onload = () => resolve(reader.result);
+                  reader.onerror = error => reject(error);
+              });
+          });
+          return Promise.all(base64Promises);
+      }
+      
+      async function generateAndDownloadPDF(reportData, imageSources) {
+          const { jsPDF } = window.jspdf;
+          const reportElement = document.createElement('div');
+          
+          reportElement.style.position = 'absolute';
+          reportElement.style.left = '-9999px';
+          reportElement.style.width = '700px';
+          reportElement.style.padding = '20px';
+          reportElement.style.fontFamily = 'Arial, sans-serif';
+          reportElement.style.color = '#000';
+          reportElement.style.backgroundColor = '#FFF';
+
+          let imagesHTML = '';
+          if (imageSources) {
+            imageSources.forEach(src => {
+                imagesHTML += `<img src="${src}" style="max-width: 150px; border-radius: 8px; margin: 5px; border: 1px solid #ccc;">`;
+            });
+          }
+          
+          // Usamos ?. (optional chaining) para evitar erros
+          reportElement.innerHTML = `
+              <h1 style="font-size: 24px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px;">Relatório de Sinistro</h1>
+              <div style="display: flex; justify-content: space-between; font-size: 14px; margin-top: 20px;">
+                  <p><strong>Veículo:</strong> ${reportData.carModel || 'Não informado'}</p>
+                  <p><strong>Local:</strong> ${reportData.location || 'Não informado'}</p>
+              </div>
+              <hr style="margin: 20px 0;">
+              
+              <h2 style="font-size: 18px; color: #444;">Análise da IA</h2>
+              <ul style="list-style-type: none; padding: 0; font-size: 14px;">
+                  <li style="margin-bottom: 10px;"><strong>Nível do Dano:</strong> ${reportData.analiseGeral?.nivelDano || 'N/A'}</li>
+                  <li style="margin-bottom: 10px;"><strong>Área Afetada:</strong> ${reportData.analiseGeral?.areaVeiculo || 'N/A'}</li>
+                  <li style="margin-bottom: 10px;"><strong>Tempo Estimado de Reparo:</strong> ${reportData.estimativas?.tempoReparo || 'N/A'}</li>
+              </ul>
+
+              <h2 style="font-size: 18px; color: #444; margin-top: 20px;">Descrição dos Danos</h2>
+              <p style="font-size: 14px; line-height: 1.6;">${reportData.descricaoDanos || 'N/A'}</p>
+
+              <h2 style="font-size: 18px; color: #444; margin-top: 20px;">Relato do Motorista</h2>
+              <p style="font-size: 14px; line-height: 1.6; font-style: italic;">"${reportData.driverReport}"</p>
+
+              <h2 style="font-size: 18px; color: #444; margin-top: 20px;">Evidências (Imagens)</h2>
+              <div>${imagesHTML}</div>
+          `;
+          
+          document.body.appendChild(reportElement);
+
+          const canvas = await html2canvas(reportElement, { useCORS: true });
+          const imgData = canvas.toDataURL('image/png');
+          
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+
+          pdf.save(`relatorio-sinistro-${reportData.carModel || 'veiculo'}.pdf`);
+          document.body.removeChild(reportElement);
+      }
+
+      async function enviarDadosParaAnalise(data) {
+          addMessage('ai', 'Analisando as imagens e os dados com a IA...');
+          showTypingIndicator();
+          try {
+              const formData = new FormData();
+              const [modelo, ...anoParts] = data.modelo.split(' ');
+              
+              Array.from(data.imagens).forEach(file => {
+                  formData.append('imagem', file);
+              });
+              formData.append('localizacao', data.cidade);
+              formData.append('modelo', modelo || data.modelo);
+              formData.append('ano', anoParts.join(' ') || 'N/A');
+              formData.append('relato_motorista', data.relato);
+
+              const imageBase64Strings = await convertFilesToBase64(data.imagens);
+              
+              const response = await fetch(`${BACKEND_URL}/analisar`, { method: 'POST', body: formData });
+              if (!response.ok) throw new Error(`Erro na API de análise: ${response.statusText}`);
+              
+              const reportData = await response.json(); // A resposta da API já é o objeto JSON
+              
+              addMessage('ai', 'Análise completa! Aqui está o seu relatório:', true);
+              
+              // Adiciona os dados coletados ao objeto do relatório para exibição e salvamento
+              const fullReportData = { 
+                  ...reportData, 
+                  driverReport: data.relato, 
+                  carModel: data.modelo, 
+                  location: data.cidade 
+              };
+              
+              addMessage('ai', gerarRelatorioHTML(fullReportData, imageBase64Strings), true);
+              
+              setTimeout(() => {
+                  addMessage('ai', 'Espero que esta análise seja útil! Se precisar de mais alguma coisa, pode perguntar.');
+              }, 2500);
+
+              saveReportToFirestore(fullReportData, imageBase64Strings);
+          } catch(error) {
+              console.error("Erro detalhado na análise:", error);
+              addMessage('ai', `Ocorreu um erro na análise do sinistro. Verifique o console (F12) para detalhes.`);
+          }
+      }
+
+      function gerarRelatorioHTML(reportData, imageSources) {
+          const reportId = `report-${Date.now()}`;
+
+          let imagesHTML = '';
+          if (imageSources && imageSources.length > 0) {
+              imageSources.forEach(src => {
+                  imagesHTML += `<img src="${src}" style="max-width: 100px; border-radius: 8px; margin: 5px; cursor: pointer;" onclick="window.open('${src}')">`;
+              });
+          }
+          
+          // Usamos ?. (optional chaining) para evitar erros se um campo não existir
+          const html = `
+            <div id="${reportId}" style="border: 1px solid var(--border-color); padding: 16px; border-radius: 12px; text-align: left;">
+              <h4>Relatório de Sinistro - ${reportData.carModel || 'Veículo'}</h4>
+              
+              <p style="margin-top: 12px;">
+                  <strong>Análise Geral:</strong>
+              </p>
+              <ul style="list-style-position: inside; padding-left: 10px; font-size: 14px;">
+                  <li><strong>Área do Veículo:</strong> ${reportData.analiseGeral?.areaVeiculo || 'N/A'}</li>
+                  <li><strong>Nível do Dano:</strong> ${reportData.analiseGeral?.nivelDano || 'N/A'}</li>
+                  <li><strong>Nível de Urgência:</strong> ${reportData.analiseGeral?.nivelUrgencia || 'N/A'}</li>
+              </ul>
+
+              <p style="margin-top: 12px;">
+                  <strong>Descrição Detalhada:</strong><br>
+                  <em style="font-size: 14px;">"${reportData.descricaoDanos || 'Nenhuma descrição fornecida.'}"</em>
+              </p>
+              
+              <p style="margin-top: 12px;">
+                  <strong>Coerência do Relato:</strong><br>
+                  <em style="font-size: 14px;">"${reportData.coerenciaRelato || 'N/A'}"</em>
+              </p>
+
+              <p style="margin-top: 12px;">
+                  <strong>Estimativas:</strong>
+              </p>
+              <ul style="list-style-position: inside; padding-left: 10px; font-size: 14px;">
+                  <li><strong>Tempo de Reparo:</strong> ${reportData.estimativas?.tempoReparo || 'N/A'}</li>
+              </ul>
+
+              <div style="margin-top: 10px;">${imagesHTML}</div>
+              <button class="action-button" data-report-id="${reportId}" style="margin-top: 16px;">Baixar Relatório (PDF)</button>
+            </div>
+          `;
+
+          setTimeout(() => {
+              const downloadBtn = document.querySelector(`button[data-report-id="${reportId}"]`);
+              if (downloadBtn) {
+                  downloadBtn.addEventListener('click', () => {
+                      downloadBtn.textContent = 'Gerando...';
+                      generateAndDownloadPDF(reportData, imageSources).finally(() => {
+                          downloadBtn.textContent = 'Baixar Relatório (PDF)';
+                      });
+                  });
+              }
+          }, 100);
+
+          return html;
+      }
+
+      async function saveReportToFirestore(reportData, imageBase64Strings) {
+        try {
+            const docData = {
+                // Dados da conversa
+                carModel: reportData.carModel,
+                location: reportData.location,
+                driverReport: reportData.driverReport,
+                images: imageBase64Strings,
+                createdAt: window.serverTimestamp(),
+                
+                // Dados da análise da IA
+                analiseGeral: reportData.analiseGeral || null,
+                coerenciaRelato: reportData.coerenciaRelato || null,
+                descricaoDanos: reportData.descricaoDanos || null,
+                estimativas: reportData.estimativas || null,
+                pecasNecessarias: reportData.pecasNecessarias || null
+            };
+            const collectionRef = window.collection(window.db, 'analyses', "public_shared_history", 'reports');
+            await window.addDoc(collectionRef, docData);
+            console.log("Relatório salvo no Firestore com sucesso!");
+        } catch (error) {
+            console.error("Erro ao salvar relatório no Firestore: ", error);
+        }
+      }
+
+      function handleAuthState() {
+          window.onAuthStateChanged(window.auth, user => {
+              if (user) {
+                  const photo = user.photoURL || `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMCIgcj0iMyIvPjxwYXRoIGQ9Im03IDE5IDUtMy43NUw3IDE5eiIvPjwvc3ZnPg==`;
+                  const name = user.displayName || 'Usuário';
+                  userPhotoEl.src = photo;
+                  userNameEl.textContent = name;
+              } else {
+                  window.location.href = 'landing.html';
+              }
+          });
+      }
+
+      window.sairParaAccount = async () => { try { await window.signOut(window.auth); } catch (error) { console.error("Erro ao fazer logout:", error); } };
+
+      async function deleteHistoryItem(reportId) {
+          if (!reportId) return;
+          try {
+              const reportRef = window.doc(window.db, 'analyses', "public_shared_history", 'reports', reportId);
+              await window.deleteDoc(reportRef);
+          } catch (error) {
+              console.error("Erro ao excluir item do histórico:", error);
+              alert("Não foi possível excluir o item.");
+          }
+      }
+
+      function loadUserHistory() {
+          const historyList = document.getElementById('history-list');
+          const q = window.query(window.collection(window.db, 'analyses', "public_shared_history", 'reports'), window.orderBy('createdAt', 'desc'));
+          
+          window.onSnapshot(q, (snapshot) => {
+              historyList.innerHTML = '';
+              if (snapshot.empty) {
+                  historyList.innerHTML = `<li style="padding: 12px 16px; font-size: 14px; color: var(--text-secondary);">Nenhum sinistro registrado.</li>`;
+              }
+              snapshot.forEach(doc => {
+                  const report = doc.data();
+                  const li = document.createElement('li');
+                  li.className = 'history-item';
+                  li.dataset.id = doc.id;
+                  li.innerHTML = `
+                      <span class="history-item-text" title="${report.carModel || 'Análise Anterior'}">${report.carModel || 'Análise Anterior'}</span>
+                      <button class="delete-history-btn" title="Excluir">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18" stroke="currentColor" stroke-width="2"/><path d="M6 6L18 18" stroke="currentColor" stroke-width="2"/></svg>
+                      </button>`;
+                  
+                  li.querySelector('.history-item-text').onclick = () => {
+                      if(window.innerWidth <= 768) { document.body.classList.remove('sidebar-open'); }
+                      startNewConversation();
+                      chatLog.innerHTML = '';
+                      addMessage('ai', `Exibindo relatório salvo para <strong>${report.carModel || 'Análise Anterior'}</strong>.`, true);
+                      addMessage('ai', gerarRelatorioHTML(report, report.images || []), true);
+                  };
+
+                  li.querySelector('.delete-history-btn').onclick = (e) => {
+                      e.stopPropagation();
+                      if (confirm(`Tem certeza que deseja excluir a análise para "${report.carModel}"?`)) {
+                          deleteHistoryItem(doc.id);
+                      }
+                  };
+                  historyList.appendChild(li);
+              });
+          });
+      }
+    </script>
+
+    <style>
+      :root {
+          --font-family: 'Google Sans Text', sans-serif; --bg-color: #131314; --sidebar-bg: #1e1f20;
+          --chat-bg: #1e1f20; --message-ai-bg: #2d2d2f; --message-user-bg: #302a3a;
+          --text-primary: #e3e3e3; --text-secondary: #9e9e9e; --border-color: #3a3a3c;
+          --accent-gradient: linear-gradient(90deg, #ff8533, #ff8533);
+          --danger-color: #f87171;
+      }
+      body.light-theme {
+          --bg-color: #f8f9fa; --sidebar-bg: #ffffff; --chat-bg: #ffffff;
+          --message-ai-bg: #f1f3f4; --message-user-bg: #f3e8ff;
+          --text-primary: #1f1f1f; --text-secondary: #5f6368; --border-color: #e0e0e0;
+          --danger-color: #ef4444;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-primary); height: 100vh; overflow: hidden; }
+      .app-layout { display: flex; height: 100%; position: relative; }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+          width: 280px; background-color: var(--sidebar-bg); padding: 16px;
+          display: flex; flex-direction: column; flex-shrink: 0; 
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          border-right: 1px solid var(--border-color); /* LINHA SEPARADORA */
+      }
+      .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+      .new-conversation-btn {
+          padding: 10px 16px; background-color: var(--message-ai-bg);
+          border: none; border-radius: 20px; cursor: pointer;
+          font-weight: 500; font-size: 14px; font-family: inherit;
+          color: var(--text-primary); display: flex; align-items: center; gap: 8px; flex-grow: 1;
+      }
+      .sidebar-toggle-btn {
+          background: none; border: none; color: var(--text-secondary); cursor: pointer;
+          padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      }
+      .sidebar h3 { font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-bottom: 12px; padding: 0 8px; }
+      .history-list { list-style: none; overflow-y: auto; flex-grow: 1; }
+      .history-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; }
+      .history-item-text { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
+      .history-item:hover { background-color: var(--message-ai-bg); }
+      .history-item .delete-history-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; visibility: hidden; opacity: 0; transition: opacity 0.2s; padding: 4px; line-height: 1; }
+      .history-item:hover .delete-history-btn { visibility: visible; opacity: 1; }
+      .delete-history-btn:hover { color: var(--danger-color); }
+      .sidebar-footer { margin-top: auto; padding-top: 16px; }
+      .sidebar-footer a { display: flex; align-items: center; gap: 12px; padding: 8px; border-radius: 20px; text-decoration: none; color: var(--text-primary); }
+      .sidebar-footer a:hover { background-color: var(--message-ai-bg); }
+      .user-photo { height: 32px; width: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); }
+      .user-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+      /* --- ÁREA PRINCIPAL --- */
+      .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; background-color: var(--chat-bg); }
+      .main-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; flex-shrink: 0; }
+      .header-title-wrapper { display: flex; align-items: center; gap: 16px; }
+      .header-title { font-weight: 500; }
+      .header-controls { display: flex; align-items: center; gap: 12px; }
+      .theme-toggle-btn, .logout-button { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 20px; padding: 8px; border-radius: 50%; }
+      .chat-area { flex-grow: 1; overflow-y: auto; padding: 24px; position: relative; }
+      .chat-area.is-welcoming { display: flex; justify-content: center; align-items: center; }
+      .chat-log { max-width: 800px; margin: 0 auto; width: 100%; }
+      @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      .message { margin-bottom: 24px; animation: fadeIn 0.4s ease; }
+      .message-content { padding: 16px 20px; border-radius: 18px; max-width: 100%; line-height: 1.7; display: inline-block; }
+      .message.ai { text-align: left; }
+      .message.user { text-align: right; }
+      .message.ai .message-content { background-color: var(--message-ai-bg); text-align: left; }
+      .message.user .message-content { background: var(--accent-gradient); color: #ffffff; text-align: left; }
+      .uploaded-images-container { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 8px;}
+      .message .uploaded-image { max-width: 150px; max-height: 150px; border-radius: 12px; }
+      .welcome-message img { max-width: 150px; margin-bottom: 16px; }
+      .chat-input-area { padding: 16px 24px 24px 24px; flex-shrink: 0; }
+      .input-wrapper { max-width: 800px; margin: 0 auto; position: relative; display: flex; align-items: center; background-color: var(--message-ai-bg); border-radius: 28px; padding: 4px; }
+      #chat-input { width: 100%; background: transparent; border: none; padding: 14px 110px 14px 20px; font-size: 1rem; font-family: inherit; color: var(--text-primary); outline: none; }
+      .input-icons { position: absolute; right: 8px; display: flex; gap: 4px; }
+      .input-icons button { background-color: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+      .input-icons button.is-recording { color: var(--danger-color); animation: pulse 1.5s infinite; }
+      .action-button { background: var(--accent-gradient); color: #ffffff; border: none; padding: 10px 20px; border-radius: 20px; font-weight: 500; font-family: inherit; cursor: pointer; margin: 16px 0 0 auto; display: block; }
+      .typing-indicator span { height: 8px; width: 8px; background-color: var(--text-secondary); border-radius: 50%; display: inline-block; animation: wave 1.3s linear infinite; }
+      @keyframes wave { 0%, 60%, 100% { transform: initial; } 30% { transform: translateY(-8px); } }
+      @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
+      /* --- RESPONSIVIDADE MOBILE --- */
+      @media (max-width: 768px) {
+          .sidebar {
+              position: absolute;
+              z-index: 100;
+              height: 100%;
+              transform: translateX(-100%);
+              box-shadow: 4px 0px 15px rgba(0,0,0,0.2);
+          }
+          body.sidebar-open .sidebar {
+              transform: translateX(0);
+          }
+          .main-header .sidebar-toggle-btn {
+              display: flex; /* Sempre mostra o botão de abrir no header em mobile */
+          }
+          .sidebar .sidebar-toggle-btn {
+              display: flex; /* Garante que o botão de fechar está visível */
+          }
+          .header-title {
+              position: static;
+              transform: none;
+          }
+          .message-content { max-width: 95%; }
+      }
+    </style>
+</head>
+<body class="dark-theme">
+
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+          <button id="btn-nova-conversa" class="new-conversation-btn">
+            Nova conversa
+          </button>
+          <button class="sidebar-toggle-btn" id="sidebar-toggle-btn-inside" title="Recolher barra lateral">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 4L9 12L15 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <h3>Histórico de Sinistros</h3>
+        <ul class="history-list" id="history-list"></ul>
+        <div class="sidebar-footer">
+            <a href="#">
+                <img id="user-photo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUgbHVjaWRlLXVzZXItY2lyY2xlIj48cGF0aCBkPSJNMjAgMjF2LTIuMDRhNC4zMyA0LjMzIDAgMCAwLTMuMTYtNC4xOWwtMS4yMS0uMjRhMS4xIDEuMSAwIDAgMS0uODgtMS4wMWwtLjA2LS4zNmE0LjMzIDQuMzMgMCAwIDAgLjAxLTkuMThsLjA2LS4zNmExLjEgMS4xIDAgMCAxIC44OC0xLjAxbDEuMjEtLjI0QTQuMzMgNC4zMyAwIDAgMCAyMCAyLjk2VjAuOTYiLz48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCIvPjwvc3ZnPg==" alt="Foto do Usuário" class="user-photo">
+                <span id="user-name" class="user-name"></span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="main-header">
+            <div class="header-title-wrapper">
+                 <button class="sidebar-toggle-btn" id="sidebar-toggle-btn-outside" title="Abrir menu">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                 </button>
+                 <div class="header-title">Assistente de Frota IA</div>
+            </div>
+            <div class="header-controls">
+                <button class="theme-toggle-btn" id="theme-toggle" title="Mudar tema">☀️</button>
+                <button class="logout-button" onclick="sairParaAccount()" title="Sair">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M17 16L21 12M21 12L17 8M21 12H9M15 4V3C15 2.44772 14.5523 2 14 2H5C3.89543 2 3 2.89543 3 4V20C3 21.1046 3.89543 22 5 22H14C14.5523 22 15 21.5523 15 21V20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+            </div>
+        </header>
+        
+        <div class="chat-area" id="chat-area">
+            <div id="chat-log"></div>
+        </div>
+
+        <div class="chat-input-area">
+            <div class="input-wrapper">
+                <input type="text" id="chat-input" placeholder="Pergunte sobre gestão de frotas ou envie uma imagem..." autocomplete="off">
+                <div class="input-icons">
+                    <button id="image-upload-btn" title="Analisar Sinistro por Imagem">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15.25 4.75H8.75C6.8467 4.75 5.25 6.3467 5.25 8.25V15.75C5.25 17.6533 6.8467 19.25 8.75 19.25H15.25C17.1533 19.25 18.75 17.6533 18.75 15.75V8.25C18.75 6.3467 17.1533 4.75 15.25 4.75Z" stroke="currentColor" stroke-width="1.5"/><path d="M8.75 14.65L10.51 12.79C11.15 12.12 12.18 12.10 12.84 12.74L15.25 15" stroke="currentColor" stroke-width="1.5"/><path d="M12.5 9.25C12.5 9.52 12.27 9.75 12 9.75C11.72 9.75 11.5 9.52 11.5 9.25C11.5 8.97 11.72 8.75 12 8.75C12.27 8.75 12.5 8.97 12.5 9.25Z" fill="currentColor"/></svg>
+                    </button>
+                    <input type="file" id="hidden-file-input" accept="image/*" style="display:none;" multiple />
+                    <button id="mic-btn" title="Falar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2C10.3431 2 9 3.34315 9 5V11C9 12.6569 10.3431 14 12 14C13.6569 14 15 12.6569 15 11V5C15 3.34315 13.6569 2 12 2Z" stroke="currentColor" stroke-width="1.5"/><path d="M19 11C19 14.866 15.866 18 12 18C8.13401 18 5 14.866 5 11" stroke="currentColor" stroke-width="1.5"/><path d="M12 18V22" stroke="currentColor" stroke-width="1.5"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+</body>
+</html>

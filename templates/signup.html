@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Gestor de Frotas</title>
+    <link rel="stylesheet" href="account-style.css">
+
+    <!-- ====================================================== -->
+    <!-- 1. ESTILOS PARA AS MENSAGENS DE SUCESSO E AJUDA      -->
+    <!-- ====================================================== -->
+    <style>
+        .input-helper-text {
+            font-size: 0.75rem;
+            color: var(--secondary-text-color, #848d97);
+            padding-left: 5px;
+            margin-top: 6px;
+            display: block;
+        }
+        /* Estilo para a mensagem de sucesso */
+        .success-message {
+            color: #22c55e; /* Verde sucesso */
+            font-size: 0.875rem;
+            text-align: center;
+            display: block;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+    </style>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+      import { 
+        getAuth, 
+        createUserWithEmailAndPassword,
+        onAuthStateChanged
+      } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+      import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+      
+      const firebaseConfig = {
+        apiKey: "AIzaSyB7e1IpR2l0wvxPE0vdkUGXO6PT74cKSu4",
+        authDomain: "ecar-agente.firebaseapp.com",
+        projectId: "ecar-agente",
+        storageBucket: "ecar-agente.appspot.com",
+        messagingSenderId: "894019220547",
+        appId: "1:894019220547:web:af042385f29544e2a810f6",
+        measurementId: "G-1J4W027QZM"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      window.auth = auth;
+      window.db = db;
+      window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+      window.doc = doc;
+      window.setDoc = setDoc;
+
+      // O onAuthStateChanged ainda é útil como um fallback,
+      // mas o redirecionamento principal será feito após a mensagem de sucesso.
+      onAuthStateChanged(auth, (user) => {
+        if (user && window.location.pathname.includes('signup.html')) {
+            // Apenas redireciona se o usuário for detectado nesta página
+            setTimeout(() => {
+                 window.location.href = 'index.html'; 
+            }, 500);
+        }
+      });
+    </script>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="6" fill="#635BFF"/><path d="M8 12h16v2H8v-2zm0 4h16v2H8v-2zm0 4h10v2H8v-2z" fill="white"/></svg>
+                </div>
+                <h1>Crie sua Conta de Gestor de Frotas</h1>
+                <p>Insira seus dados para começar a otimizar sua operação.</p>
+            </div>
+            
+            <form class="login-form" id="signUpForm" novalidate>
+                <div class="input-group">
+                    <input type="text" id="fullName" name="fullName" required placeholder=" ">
+                    <label for="fullName">Nome Completo</label>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="companyName" name="companyName" required placeholder=" ">
+                    <label for="companyName">Nome da Empresa</label>
+                </div>
+                 <div class="input-group">
+                    <input type="text" id="jobTitle" name="jobTitle" required placeholder=" ">
+                    <label for="jobTitle">Cargo (Ex: Gestor de Frota)</label>
+                </div>
+                <div class="input-group">
+                    <input type="email" id="email" name="email" required autocomplete="email" placeholder=" ">
+                    <label for="email">E-mail de Trabalho</label>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" name="password" required autocomplete="new-password" placeholder=" ">
+                    <label for="password">Senha</label>
+                    <button type="button" class="password-toggle" id="passwordToggle" aria-label="Mostrar/Ocultar senha">
+                        <svg class="eye-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3C4.5 3 1.6 5.6 1 8c.6 2.4 3.5 5 7 5s6.4-2.6 7-5c-.6-2.4-3.5-5-7-5zm0 8.5A3.5 3.5 0 118 4.5a3.5 3.5 0 010 7zm0-5.5a2 2 0 100 4 2 2 0 000-4z" fill="currentColor"/></svg>
+                    </button>
+                    <span class="input-helper-text">A senha deve ter no mínimo 6 caracteres.</span>
+                </div>
+                
+                <!-- ====================================================== -->
+                <!-- ELEMENTOS PARA MENSAGENS DE ERRO E SUCESSO           -->
+                <!-- ====================================================== -->
+                <span class="error-message" id="formError"></span>
+                <span class="success-message" id="formSuccess"></span>
+
+                <button type="submit" class="submit-btn" id="submit-button">
+                    <span class="btn-text">Criar Conta</span>
+                </button>
+            </form>
+
+            <div class="signup-link">
+                <span>Já tem uma conta? </span>
+                <a href="account.html">Entrar agora</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const signUpForm = document.getElementById('signUpForm');
+            const passwordInput = document.getElementById('password');
+            const passwordToggle = document.getElementById('passwordToggle');
+            const formError = document.getElementById('formError');
+            const formSuccess = document.getElementById('formSuccess');
+            const submitButton = document.getElementById('submit-button');
+
+            passwordToggle.addEventListener('click', () => {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                passwordToggle.style.color = type === 'text' ? '#635BFF' : '#8792a2';
+            });
+
+            signUpForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const fullName = document.getElementById('fullName').value;
+                const companyName = document.getElementById('companyName').value;
+                const jobTitle = document.getElementById('jobTitle').value;
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                // Limpa mensagens anteriores
+                formError.textContent = '';
+                formSuccess.textContent = '';
+                submitButton.disabled = true; // Desabilita o botão para evitar cliques duplos
+
+                if (!fullName || !companyName || !jobTitle || !email || !password) {
+                    formError.textContent = 'Por favor, preencha todos os campos.';
+                    submitButton.disabled = false;
+                    return;
+                }
+
+                try {
+                    // 1. Criar o usuário no Firebase Authentication
+                    const userCredential = await window.createUserWithEmailAndPassword(window.auth, email, password);
+                    const user = userCredential.user;
+                    
+                    // 2. Salvar os dados adicionais no Firestore
+                    await window.setDoc(window.doc(window.db, "users", user.uid), {
+                        nome: fullName,
+                        empresa: companyName,
+                        cargo: jobTitle,
+                        email: email
+                    });
+
+                    // ====================================================== -->
+                    // 3. EXIBIR MENSAGEM DE SUCESSO E REDIRECIONAR         -->
+                    // ====================================================== -->
+                    formSuccess.textContent = 'Conta criada com sucesso! Redirecionando...';
+
+                    // Aguarda 2 segundos antes de redirecionar para o usuário ver a mensagem
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 2000);
+
+                } catch (error) {
+                    console.error('Erro ao cadastrar:', error.code, error.message);
+                    // ====================================================== -->
+                    // 4. EXIBIR MENSAGEM DE ERRO MELHORADA                   -->
+                    // ====================================================== -->
+                    if (error.code === 'auth/invalid-email') {
+                        formError.textContent = 'O e-mail fornecido não é válido.';
+                    } else if (error.code === 'auth/email-already-in-use') {
+                        formError.textContent = 'Este e-mail já está em uso. Tente fazer login.';
+                    } else if (error.code === 'auth/weak-password') {
+                        formError.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+                    } else {
+                        formError.textContent = 'Ocorreu um erro ao criar a conta. Tente novamente.';
+                    }
+                    submitButton.disabled = false; // Reabilita o botão em caso de erro
+                }
+            });
+        });
+    </script>
+</body>
+</html>
