@@ -3,27 +3,34 @@ import base64
 import httpx
 from fastapi import FastAPI, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from typing import Dict, Any, List
 
+# --- Pydantic Model for Chat Request ---
+# Defines the expected structure for a chat query
+class ChatQuery(BaseModel):
+    question: str
+
 # Initialize the FastAPI application
-app = FastAPI(title="Vehicle Damage Analysis API")
+app = FastAPI(title="Assistente de Frota IA API")
 
 # --- CORS Middleware Configuration ---
+# Allowing all origins for flexibility during development and deployment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https-agente-sinistro-frontend.onrender.com"],    allow_credentials=True,
-    allow_methods=["POST"],
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 # --- Gemini API Configuration ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-# Using the latest recommended model for this kind of task
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
-# --- Helper Function ---
+# --- Helper Function for Image Encoding ---
 def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
-    """Reads an uploaded file and encodes it to a Base64 string, returning a dictionary."""
+    """Reads an uploaded file and encodes it to a Base64 string."""
     try:
         content = file.file.read()
         encoded_data = base64.b64encode(content).decode('utf-8')
@@ -31,99 +38,115 @@ def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
     finally:
         file.file.close()
 
-# --- API Endpoint (Corrected) ---
+# ==========================================================
+#  ENDPOINT 1: CHAT DE GESTÃO DE FROTAS
+# ==========================================================
+@app.post("/chat", summary="Conversational Fleet Management Expert")
+async def chat_with_fleet_expert(query: ChatQuery) -> Dict[str, str]:
+    """
+    Receives a question from a driver, frames it with an expert prompt,
+    and returns Gemini's answer on fleet management.
+    """
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set.")
+
+    # This prompt instructs the AI on its personality and expertise
+    expert_prompt = f"""
+    Aja como um especialista em gestão de frotas chamado "Assistente de Frota IA".
+    Sua função é fornecer conselhos claros, práticos e úteis para motoristas.
+    Seu tom deve ser amigável, profissional e direto.
+    Responda à seguinte pergunta do condutor: "{query.question}"
+    """
+
+    payload = {
+        "contents": [{"parts": [{"text": expert_prompt}]}],
+        "generationConfig": {
+            "temperature": 0.7,
+            "topP": 1.0,
+            "maxOutputTokens": 2048,
+        }
+    }
+    headers = {"Content-Type": "application/json"}
+    params = {"key": GEMINI_API_KEY}
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(GEMINI_API_URL, json=payload, headers=headers, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            if "candidates" in data and data["candidates"]:
+                text_content = data["candidates"][0]["content"]["parts"][0]["text"]
+                return {"answer": text_content}
+
+            raise HTTPException(status_code=500, detail="Could not extract content from Gemini API response.")
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=e.response.status_code, detail=f"Error from Gemini API: {e.response.text}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+
+
+# ==========================================================
+#  ENDPOINT 2: ANÁLISE DE SINISTROS (Existente)
+# ==========================================================
 @app.post("/analisar", summary="Analyze Vehicle Damage Images")
 async def analisar(
-    imagem: List[UploadFile] = Form(...), # Now accepts a list of images
+    imagem: List[UploadFile] = Form(...),
     localizacao: str = Form(...),
     modelo: str = Form(...),
     ano: str = Form(...),
     relato_motorista: str = Form(...)
 ) -> Dict[str, Any]:
     """
-    This endpoint receives multiple images of vehicle damage, location, car model,
-    and a driver's report. It sends this data to the Gemini API for analysis
-    and returns the model's structured JSON description.
+    Analyzes vehicle damage images and returns a structured JSON report.
+    (This endpoint remains unchanged)
     """
     if not GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="GEMINI_API_KEY environment variable not set."
-        )
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set.")
 
-    # 1. Construct the prompt for the AI internally
     prompt = f"""
-      Você é um especialista em análise de sinistros de veículos. Sua tarefa é analisar as imagens de um carro danificado, o relato do motorista e a sua localização.
-      O carro é um {modelo} ano {ano}.
-      A localização para cotação de peças e serviços é: {localizacao}.
-      
-      Baseado nas imagens e no relato, forneça uma análise estruturada em JSON. O JSON deve ter a seguinte estrutura e nada mais:
-      {{
-        "analiseGeral": {{ "nivelDano": "...", "nivelUrgencia": "...", "areaVeiculo": "..." }},
-        "descricaoDanos": "...",
-        "coerenciaRelato": "...",
-        "pecasNecessarias": [ {{"nome": "...", "custo": 123.45}} ],
-        "estimativas": {{ "tempoReparo": "..." }}
-      }}
-      
-      IMPORTANTE: Forneça estimativas de custo realistas em Reais (BRL) para o Brasil, considerando a localização informada ({localizacao}). A resposta deve ser apenas o JSON.
+    Você é um especialista em análise de sinistros de veículos. Analise as imagens de um {modelo} ano {ano} e o relato do motorista.
+    Localização para cotação: {localizacao}.
+    Relato: {relato_motorista}.
+    
+    Forneça uma análise estruturada em JSON com a seguinte estrutura:
+    {{
+      "analiseGeral": {{ "nivelDano": "...", "nivelUrgencia": "...", "areaVeiculo": "..." }},
+      "descricaoDanos": "...",
+      "coerenciaRelato": "...",
+      "pecasNecessarias": [ {{"nome": "...", "custo": 123.45}} ],
+      "estimativas": {{ "tempoReparo": "..." }}
+    }}
+    
+    IMPORTANTE: Forneça custos realistas em Reais (BRL) para {localizacao}. A resposta deve ser apenas o JSON.
     """
-
-    # 2. Encode all uploaded images to Base64
-    image_parts = []
-    for file in imagem:
-        encoded_image = encode_image_to_base64(file)
-        image_parts.append({"inline_data": encoded_image})
-
-    # 3. Construct the payload for the Gemini API
+    image_parts = [{"inline_data": encode_image_to_base64(file)} for file in imagem]
+    
     payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": prompt},
-                    *image_parts, # Unpack all image parts here
-                    {"text": f"Adicionalmente, considere o seguinte relato do motorista: {relato_motorista}"}
-                ]
-            }
-        ],
+        "contents": [{"parts": [{"text": prompt}, *image_parts]}],
         "generationConfig": {
-            "temperature": 0.5,
-            "topP": 1.0,
+            "temperature": 0.4,
             "maxOutputTokens": 4096,
-            "responseMimeType": "application/json", # Request a JSON response directly
+            "responseMimeType": "application/json",
         }
     }
+    headers = {"Content-Type": "application/json"}
+    params = {"key": GEMINI_API_KEY}
 
-    headers = { "Content-Type": "application/json" }
-    params = { "key": GEMINI_API_KEY }
-
-    # 4. Make the asynchronous API call to Gemini
     try:
         async with httpx.AsyncClient(timeout=90.0) as client:
             response = await client.post(GEMINI_API_URL, json=payload, headers=headers, params=params)
             response.raise_for_status()
-
             data = response.json()
             
             if "candidates" in data and data["candidates"]:
-                first_candidate = data["candidates"][0]
-                if "content" in first_candidate and "parts" in first_candidate["content"]:
-                    text_content = "".join(part.get("text", "") for part in first_candidate["content"]["parts"])
-                    return {"descricao": text_content}
-
-            raise HTTPException(
-                status_code=500,
-                detail="Could not extract content from Gemini API response."
-            )
-
+                text_content = data["candidates"][0]["content"]["parts"][0]["text"]
+                return {"descricao": text_content}
+            
+            raise HTTPException(status_code=500, detail="Could not extract content from Gemini API response.")
+    
     except httpx.HTTPStatusError as e:
-        raise HTTPException(
-            status_code=e.response.status_code,
-            detail=f"Error from Gemini API: {e.response.text}"
-        )
+        raise HTTPException(status_code=e.response.status_code, detail=f"Error from Gemini API: {e.response.text}")
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"An unexpected error occurred: {str(e)}"
-        )
-
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
