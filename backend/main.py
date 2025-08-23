@@ -11,7 +11,7 @@ from datetime import datetime
 class ChatQuery(BaseModel):
     question: str
 
-# Initialize FastAPI app
+# --- FastAPI App Initialization ---
 app = FastAPI(title="Assistente de Frota IA API")
 
 # --- CORS Middleware ---
@@ -35,6 +35,11 @@ def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
         return {"mime_type": file.content_type, "data": encoded_data}
     finally:
         file.file.close()
+
+# --- Root endpoint ---
+@app.get("/")
+def root():
+    return {"message": "API Assistente de Frota IA funcionando! Use /chat ou /analisar"}
 
 # ==========================================================
 # ENDPOINT 1: CHAT DE GESTÃO DE FROTAS
@@ -94,7 +99,6 @@ async def analisar(
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set.")
 
-    # Prompt restritivo para gerar JSON no formato correto
     prompt = f"""
     Você é um especialista em análise de sinistros de veículos.
     Analise as imagens de um {modelo} ano {ano} e o relato do motorista: "{relato_motorista}".
