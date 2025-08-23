@@ -1,5 +1,6 @@
 import os
 import base64
+import json
 import httpx
 from fastapi import FastAPI, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -147,7 +148,11 @@ async def analisar(
             
             if "candidates" in data and data["candidates"]:
                 text_content = data["candidates"][0]["content"]["parts"][0]["text"]
-                return {"analise": text_content}
+                try:
+                    json_content = json.loads(text_content)  # CONVERTE string JSON em dict Python
+                except json.JSONDecodeError:
+                    raise HTTPException(status_code=500, detail="Resposta do Gemini não é JSON válido")
+                return json_content  # FastAPI envia JSON real
             
             raise HTTPException(status_code=500, detail="Could not extract content from Gemini API response.")
     
