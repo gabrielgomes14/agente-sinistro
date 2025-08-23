@@ -5,20 +5,19 @@ from fastapi import FastAPI, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, List
+from datetime import datetime
 
 # --- Pydantic Model for Chat Request ---
-# Defines the expected structure for a chat query
 class ChatQuery(BaseModel):
     question: str
 
-# Initialize the FastAPI application
+# Initialize FastAPI app
 app = FastAPI(title="Assistente de Frota IA API")
 
-# --- CORS Middleware Configuration ---
-# Allowing all origins for flexibility during development and deployment
+# --- CORS Middleware ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
@@ -30,7 +29,6 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini
 
 # --- Helper Function for Image Encoding ---
 def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
-    """Reads an uploaded file and encodes it to a Base64 string."""
     try:
         content = file.file.read()
         encoded_data = base64.b64encode(content).decode('utf-8')
@@ -39,18 +37,13 @@ def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
         file.file.close()
 
 # ==========================================================
-#  ENDPOINT 1: CHAT DE GESTÃO DE FROTAS
+# ENDPOINT 1: CHAT DE GESTÃO DE FROTAS
 # ==========================================================
 @app.post("/chat", summary="Conversational Fleet Management Expert")
 async def chat_with_fleet_expert(query: ChatQuery) -> Dict[str, str]:
-    """
-    Receives a question from a driver, frames it with an expert prompt,
-    and returns Gemini's answer on fleet management.
-    """
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set.")
 
-    # This prompt instructs the AI on its personality and expertise
     expert_prompt = f"""
     Aja como um especialista em gestão de frotas chamado "Assistente de Frota IA".
     Sua função é fornecer conselhos claros, práticos e úteis para motoristas.
@@ -86,9 +79,8 @@ async def chat_with_fleet_expert(query: ChatQuery) -> Dict[str, str]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
-
 # ==========================================================
-#  ENDPOINT 2: ANÁLISE DE SINISTROS (Existente)
+# ENDPOINT 2: ANÁLISE DE SINISTROS
 # ==========================================================
 @app.post("/analisar", summary="Analyze Vehicle Damage Images")
 async def analisar(
@@ -98,31 +90,40 @@ async def analisar(
     ano: str = Form(...),
     relato_motorista: str = Form(...)
 ) -> Dict[str, Any]:
-    """
-    Analyzes vehicle damage images and returns a structured JSON report.
-    (This endpoint remains unchanged)
-    """
+
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set.")
 
+    # Prompt restritivo para gerar JSON no formato correto
     prompt = f"""
-    Você é um especialista em análise de sinistros de veículos. Analise as imagens de um {modelo} ano {ano} e o relato do motorista.
+    Você é um especialista em análise de sinistros de veículos.
+    Analise as imagens de um {modelo} ano {ano} e o relato do motorista: "{relato_motorista}".
     Localização para cotação: {localizacao}.
-    Relato: {relato_motorista}.
-    
-    Forneça uma análise estruturada em JSON com a seguinte estrutura:
+
+    Retorne **apenas** um JSON exatamente no formato:
+
     {{
-      "analiseGeral": {{ "nivelDano": "...", "nivelUrgencia": "...", "areaVeiculo": "..." }},
+      "analiseGeral": {{
+        "nivelDano": "...",
+        "nivelUrgencia": "...",
+        "areaVeiculo": "..."
+      }},
       "descricaoDanos": "...",
       "coerenciaRelato": "...",
-      "pecasNecessarias": [ {{"nome": "...", "custo": 123.45}} ],
-      "estimativas": {{ "tempoReparo": "..." }}
+      "pecasNecessarias": [{{"nome": "...", "custo": 123.45}}],
+      "estimativas": {{
+        "tempoReparo": "...",
+        "custoTotal": 123.45
+      }},
+      "carModel": "{modelo} {ano}",
+      "createdAt": "{datetime.now().strftime('%d de %B de %Y às %H:%M:%S UTC-3')}"
     }}
-    
-    IMPORTANTE: Forneça custos realistas em Reais (BRL) para {localizacao}. A resposta deve ser apenas o JSON.
+
+    Não adicione campos extras. Use valores realistas em Reais (BRL) para {localizacao}.
     """
+
     image_parts = [{"inline_data": encode_image_to_base64(file)} for file in imagem]
-    
+
     payload = {
         "contents": [{"parts": [{"text": prompt}, *image_parts]}],
         "generationConfig": {
@@ -142,7 +143,7 @@ async def analisar(
             
             if "candidates" in data and data["candidates"]:
                 text_content = data["candidates"][0]["content"]["parts"][0]["text"]
-                return {"descricao": text_content}
+                return {"analise": text_content}
             
             raise HTTPException(status_code=500, detail="Could not extract content from Gemini API response.")
     
