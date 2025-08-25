@@ -26,7 +26,7 @@ app.add_middleware(
 
 # --- Gemini API Configuration ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 # --- Helper Function for Image Encoding ---
 def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
