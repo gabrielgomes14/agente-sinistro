@@ -5,583 +5,434 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
-    integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
 
-  <link rel="stylesheet" href="style.css" type="text/css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  <link href="https://unpkg.com/ionicons@4.2.0/dist/css/ionicons.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900" rel="stylesheet">
-
-  <title>Fleet | Análise de Sinistros com IA</title>
+  <title>Stellar UI - Craft Stunning User Interfaces</title>
 
   <style>
     /* --- CONFIGURAÇÕES GLOBAIS E VARIÁVEIS --- */
     :root {
-      --primary-color: #ff8533;
-      --dark-color: #2c3e50;
-      --light-gray: #f8f9fa;
-      --white-color: #ffffff;
-      --border-color: #e9ecef;
+      --bg-dark: #03040B;
+      --primary-blue: #3B82F6;
+      --primary-purple: #8B5CF6;
+      --text-light: #E5E7EB;
+      --text-muted: #9CA3AF;
+      --border-glass: rgba(255, 255, 255, 0.1);
+      --bg-glass: rgba(255, 255, 255, 0.05);
+      /* ALTERADO: Gradiente do título mais sutil no tema escuro */
+      --hero-gradient: linear-gradient(180deg, #FFFFFF 70%, #a8a8a8);
+      --blob-opacity: 0.2;
+      --logo-filter: none;
+      --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
     }
-
-    html {
-      scroll-behavior: smooth;
+    
+    body.light-theme {
+      --bg-dark: #F4F7FE;
+      --text-light: #1A202C;
+      --text-muted: #718096;
+      --border-glass: rgba(0, 0, 0, 0.08);
+      --bg-glass: rgba(255, 255, 255, 0.6);
+      /* ALTERADO: Gradiente do título mais vibrante no tema claro */
+      --hero-gradient: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-purple) 100%);
+      --blob-opacity: 0.3;
+      --logo-filter: invert(1);
+      --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
     }
 
     body {
-      font-family: 'Roboto', sans-serif;
+      font-family: 'Poppins', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-light);
       overflow-x: hidden;
-      /* Adiciona espaçamento no topo para compensar a navbar fixa */
-      padding-top: 75px;
+      position: relative;
+      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
-    section {
-      padding: 80px 0;
+    /* --- NOVO: Animações --- */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    
-    h1, h2, h3, h4, h5, h6 {
-        font-weight: 700;
+    @keyframes zoomIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
     }
-    
-    p {
-        line-height: 1.7;
-    }
-
-    .btn {
-        border-radius: 50px;
-        padding: 12px 30px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .btn-regular {
-        background-color: var(--primary-color);
-        color: var(--white-color);
+    @keyframes float {
+        0% { transform: translateY(0px) translateX(0px); }
+        50% { transform: translateY(-20px) translateX(10px); }
+        100% { transform: translateY(0px) translateX(0px); }
     }
 
-    .btn-regular:hover {
-        background-color: #e6732e;
-        color: var(--white-color);
-        transform: translateY(-3px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    
-    .btn-demo-small {
-       background-color: var(--primary-color) !important;
-       color: var(--white-color) !important;
-       border: none;
+
+    /* --- EFEITO DE FUNDO (AURORA/BLOBS) --- */
+    .background-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      z-index: -1;
     }
 
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(150px);
+      opacity: var(--blob-opacity);
+      transition: opacity 0.3s ease;
+      /* ADICIONADO: Animação de flutuação */
+      animation: float 15s ease-in-out infinite;
+    }
+
+    .blob-1 {
+      background: var(--primary-blue);
+      width: 500px;
+      height: 500px;
+      top: -200px;
+      left: -10%;
+    }
+
+    .blob-2 {
+      background: var(--primary-purple);
+      width: 600px;
+      height: 600px;
+      top: 10%;
+      right: -15%;
+      /* ADICIONADO: Delay para não se moverem em uníssono */
+      animation-delay: 3s;
+      animation-duration: 20s;
+    }
+
+    /* --- ESTILOS GERAIS --- */
+    h1 {
+      font-weight: 700;
+    }
 
     /* --- ESTILOS DA NAVBAR --- */
     .custom-navbar {
-        background-color: var(--white-color);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-        padding: 15px 0;
+      padding: 15px 0;
+      background-color: transparent;
+      border-bottom: 1px solid var(--border-glass);
+      width: 100%;
+      z-index: 1000;
+      /* ADICIONADO: Efeito de vidro também na navbar */
+      background: var(--bg-glass);
+      backdrop-filter: blur(10px);
     }
     
-    .nav-logo-desktop {
-        max-height: 45px;
+    .navbar-brand-custom {
+        display: flex;
+        align-items: center;
+        color: var(--text-light) !important;
+        font-weight: 600;
+        font-size: 1.25rem;
     }
-    
+    .navbar-brand-custom img {
+        filter: var(--logo-filter);
+        transition: filter 0.3s ease;
+    }
+    .navbar-brand-custom svg {
+        width: 28px;
+        height: 28px;
+        margin-right: 10px;
+    }
+
     .custom-navbar .nav-link {
-        font-weight: 500;
-        color: var(--dark-color);
+      color: var(--text-muted) !important;
+      font-weight: 500;
+      margin: 0 15px;
+      font-size: 0.95rem;
+      transition: color 0.3s ease;
     }
 
-    .navbar-toggler {
-      border: none;
-      padding: 0;
+    .custom-navbar .nav-link:hover {
+      color: var(--text-light) !important;
     }
 
-    .navbar-toggler:focus {
-      outline: none;
-      box-shadow: none;
-    }
-
-    .navbar-toggler .icon {
-      font-size: 2.2rem;
-      color: var(--dark-color);
+    .btn {
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+      border: 1px solid transparent;
     }
     
+    .btn-outline-glass {
+      background: transparent;
+      border: 1px solid var(--border-glass);
+      color: var(--text-muted);
+      display: flex; /* Para alinhar o ícone */
+      align-items: center;
+    }
     
-    /* --- SEÇÕES ESPECÍFICAS --- */
+    .btn-outline-glass:hover {
+      background: var(--bg-glass);
+      color: var(--text-light);
+      /* ALTERADO: Borda um pouco mais visível no hover */
+      border-color: var(--primary-blue);
+    }
 
-    /* HERO */
+    /* --- SEÇÃO HERO --- */
     #hero {
-        padding-top: 40px;
-        padding-bottom: 40px;
-    }
-    #hero h1 {
-        font-size: 2.8rem;
-        font-weight: 900;
-        margin-bottom: 1.5rem;
-    }
-    #hero .lead {
-        font-size: 1.2rem;
-        color: #555;
-        margin-bottom: 2rem;
-    }
-
-    /* FEATURES */
-    #features .content-box span {
-        color: var(--primary-color);
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    #features .content-box h2 {
-        margin-top: 0.5rem;
+      padding: 120px 0; /* Aumentado padding */
+      text-align: center;
     }
     
-    /* HOW IT WORKS */
-    .feature-box {
-        padding: 30px;
-        border-radius: 10px;
-        background-color: var(--white-color);
-        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        height: 100%;
-        transition: all 0.3s ease;
-    }
-    .feature-box:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-    }
-
-    /* TESTIMONIALS */
-    .testimonial-box {
-        padding: 30px;
-        background-color: var(--light-gray);
-        border-left: 5px solid var(--primary-color);
-        border-radius: 8px;
-        height: 100%;
-    }
-    .testimonial-box .profile-picture {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background-size: cover;
-        background-position: center;
-    }
-    .review-one { /* Adicionar imagens aqui */
-        background-image: url('https://via.placeholder.com/100');
-    }
-    .testimonial-box .rating {
-        color: #f39c12;
+    .new-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      border: 1px solid var(--border-glass);
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      background: var(--bg-glass);
+      backdrop-filter: blur(10px);
+      margin-bottom: 24px;
+      color: var(--text-light);
+      /* ADICIONADO: Sombra sutil para destacar */
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.2);
+      animation: fadeInUp 0.5s ease-out; /* Animação */
     }
 
-    /* CALL TO ACTION */
-    #call-to-action {
-        position: relative;
-        color: var(--white-color);
-        padding: 120px 0;
-        overflow: hidden;
+    #hero h1 {
+      font-size: 4.8rem; /* Aumentado para mais impacto */
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      background: var(--hero-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -2.5px; /* Mais condensado */
+      animation: fadeInUp 0.7s ease-out; /* Animação */
     }
 
-    #bgvid {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        min-width: 100%;
-        min-height: 100%;
-        width: auto;
-        height: auto;
-        transform: translateX(-50%) translateY(-50%);
-        z-index: -2;
+    #hero p {
+      color: var(--text-muted);
+      max-width: 600px; /* Levemente maior */
+      margin: 0 auto 40px auto;
+      font-size: 1.1rem;
+      line-height: 1.7; /* Mais espaçamento entre linhas */
+      animation: fadeInUp 0.9s ease-out; /* Animação */
     }
-    .video-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
+    
+    .btn-hero-cta {
+      background-color: var(--primary-blue);
+      border: 1px solid var(--primary-blue);
+      color: #fff;
+      padding: 14px 35px; /* Maior e mais destacado */
+      font-weight: 600; /* Mais forte */
+      font-size: 1rem;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+      animation: fadeInUp 1.1s ease-out; /* Animação */
+    }
+    .btn-hero-cta:hover {
+       background-color: #2563EB; /* Tom de azul mais escuro */
+       border-color: #2563EB;
+       box-shadow: 0 6px 25px rgba(59, 130, 246, 0.5);
+       transform: translateY(-2px);
+       color: #fff;
+    }
+    
+    /* --- VISUAL PRINCIPAL E ELEMENTOS FLUTUANTES --- */
+    .hero-visual {
+      margin-top: 80px;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .glass-card {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      backdrop-filter: blur(25px);
+      -webkit-backdrop-filter: blur(25px);
+      border: 1px solid var(--border-glass);
+      border-radius: 20px;
+      box-shadow: var(--card-shadow);
+      /* ADICIONADO: Animação */
+      animation: zoomIn 1s ease-out;
+      animation-fill-mode: both; /* Mantém o estado final da animação */
+    }
+
+    .main-ui-card {
+        padding: 15px;
         width: 100%;
-        height: 100%;
-        background: rgba(44, 62, 80, 0.7); /* Overlay mais escuro para legibilidade */
-        z-index: -1;
-    }
-    #call-to-action .container {
-        position: relative;
-        z-index: 1;
+        max-width: 900px;
     }
 
-    /* FOOTER */
-    footer {
-        background: var(--dark-color);
-        color: #ccc;
-        padding: 60px 0 20px 0;
+    .main-ui-card img {
+      border-radius: 12px;
+      width: 100%;
     }
-    footer h5 {
-        color: var(--white-color);
-        margin-bottom: 1.5rem;
+    
+    .floating-card {
+        position: absolute;
+        z-index: 2;
+        padding: 25px;
+        width: 320px;
+        text-align: left;
+        /* ALTERADO: Posição para o lado esquerdo, mais limpo */
+        top: 50%;
+        left: 0;
+        transform: translate(-50%, -50%);
+        animation-delay: 0.5s; /* Delay para aparecer depois do card principal */
     }
-    footer ul {
-        list-style: none;
-        padding: 0;
-    }
-    footer ul li a {
-        color: #ccc;
+    .floating-card h5 {
+        font-weight: 600;
+        color: var(--text-light);
         margin-bottom: 10px;
-        display: inline-block;
     }
-    footer ul li a:hover {
-        color: var(--primary-color);
+    .floating-card p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-bottom: 20px !important;
+        line-height: 1.6;
+    }
+    .floating-card a {
+        color: var(--text-light);
+        font-weight: 500;
+        font-size: 0.9rem;
         text-decoration: none;
     }
-    .divider {
-        border-top: 1px solid #444;
-        margin: 40px 0;
+    .floating-card a:hover {
+        color: var(--primary-blue);
     }
-    .social-icons a {
-        color: #ccc;
-        font-size: 1.5rem;
-        margin-right: 20px;
-    }
-    .social-icons a:hover {
-        color: var(--primary-color);
+    /* ALTERADO: Barra superior com gradiente, mais elegante */
+    .floating-card::before {
+        content: '';
+        position: absolute;
+        top: -1px; /* Alinhado com a borda */
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background-image: linear-gradient(90deg, var(--primary-blue), var(--primary-purple));
+        border-radius: 20px 20px 0 0;
+        filter: none; /* Removido blur desnecessário */
     }
 
-
-    /* --- MEDIA QUERIES PARA RESPONSIVIDADE --- */
-
-    /* TABLETS E TELAS MENORES (Ativa o menu hambúrguer) */
+    /* --- RESPONSIVIDADE --- */
+    @media (max-width: 1199.98px) {
+        /* Esconde o card flutuante para não poluir telas menores */
+        .floating-card { display: none; } 
+    }
     @media (max-width: 991.98px) {
-        .custom-navbar .navbar-collapse {
-            position: fixed;
-            top: 75px; /* Altura da navbar */
-            left: 0;
-            width: 100%;
-            height: calc(100vh - 75px);
-            background-color: var(--white-color);
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            transform: translateY(-120%);
-            transition: transform 0.3s ease-in-out;
-        }
-
-        .custom-navbar .navbar-collapse.show {
-            transform: translateY(0);
-        }
-
-        .custom-navbar .navbar-nav {
-            width: 100%;
-        }
-
-        .custom-navbar .nav-item {
-            margin-bottom: 20px;
-        }
-        
-        .custom-navbar .nav-link {
-            font-size: 1.5rem;
-            padding: 10px 0;
-        }
-
-        .custom-navbar .ml-auto {
-            border-top: 1px solid var(--border-color);
-            margin-top: 30px;
-            padding-top: 30px;
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        
-        .custom-navbar .ml-auto .nav-item {
-            width: 100%;
-            max-width: 300px;
-        }
-        
-        .custom-navbar .ml-auto .nav-link {
-            width: 100%;
-        }
+      #hero { padding: 100px 0; }
+      #hero h1 { font-size: 3.5rem; letter-spacing: -1.5px; }
+      #hero p { font-size: 1rem; max-width: 500px; }
     }
     
-    /* CELULARES */
     @media (max-width: 767.98px) {
-        section {
-            padding: 60px 0;
-        }
-
-        h1, #hero h1 {
-            font-size: 2.2rem;
-        }
-        
-        h2 {
-            font-size: 1.8rem;
-        }
-
-        /* AJUSTE DA ORDEM E ALINHAMENTO NA SEÇÃO HERO */
-        #hero .row {
-            flex-direction: column-reverse; /* Inverte a ordem: imagem em cima, texto embaixo */
-        }
-
-        .hero-content {
-            text-align: center; /* Centraliza o texto */
-            margin-top: 40px;  /* Adiciona espaço acima do texto */
-        }
-        
-        /* AJUSTE NA SEÇÃO FEATURES */
-        #features .row {
-            flex-direction: column-reverse;
-        }
-        #features .content-box {
-            text-align: center;
-        }
-        #features img {
-            margin-bottom: 30px;
-        }
-        
-        .title-block {
-            text-align: center;
-        }
-
-        /* AJUSTES NO FOOTER */
-        footer .col-md-3,
-        footer .col-md-6 {
-            text-align: center;
-            margin-bottom: 40px;
-        }
-
-        .social-icons {
-            justify-content: center;
-            display: flex;
-        }
-        
-        .text-md-right {
-            text-align: center !important;
-        }
+      #hero { padding: 80px 0; }
+      #hero h1 { font-size: 2.8rem; letter-spacing: -1px; }
+      .custom-navbar .navbar-nav { display: none; } /* Simplifica navbar */
     }
   </style>
 </head>
 
 <body>
+  <div class="background-container">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+  </div>
 
-  <nav class="navbar navbar-expand-lg fixed-top custom-navbar">
-    <div class="container">
-      <a class="navbar-brand" href="#hero">
-        <img src="images/fleet.png" class="nav-logo-desktop" alt="Company Logo">
-      </a>
-      
-      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown"
-        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="icon ion-md-menu"></span>
-      </button>
-
-      <div class="collapse navbar-collapse" id="navbarNavDropdown">
-        <ul class="navbar-nav">
-          <li class="nav-item">
-            <a class="nav-link" href="#hero">Home</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#features">Funcionalidades</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#testimonials">Depoimentos</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="#how-it-works">Como Funciona</a>
-          </li>
-        </ul>
-
-        <ul class="navbar-nav ml-auto align-items-center">
-          <li class="nav-item">
-            <a class="nav-link" href="account.html">Login</a>
-          </li>
-          <li class="nav-item ml-lg-3">
-            <a class="nav-link btn btn-demo-small" href="signup.html">Criar conta</a>
-          </li>
-        </ul>
+  <header>
+    <nav class="navbar navbar-expand-lg custom-navbar fixed-top">
+      <div class="container">
+        <a class="navbar-brand-custom" href="#">
+            <img src="images/fleet.png" alt="Logo" style="width: 100%; height: auto; max-width: 100px;" />
+        </a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav mx-auto">
+            <li class="nav-item"><a class="nav-link" href="#">Produto</a></li>
+            <li class="nav-item"><a class="nav-link" href="#">Preços</a></li>
+            <li class="nav-item"><a class="nav-link" href="#">Novidades</a></li>
+          </ul>
+          <div class="d-flex align-items-center">
+            <a href="#" class="btn btn-outline-glass mr-2">Entrar</a>
+            <a href="#" class="btn btn-outline-glass mr-3">Cadastrar</a>
+            <button id="theme-toggle-btn" class="btn btn-outline-glass" style="padding: 8px 10px;">
+                <svg id="theme-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                </svg>
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-  </nav>
+    </nav>
+  </header>
 
   <main>
-
     <section id="hero">
       <div class="container">
-        <div class="row align-items-center">
-          <div class="col-lg-5 col-md-6">
-            <img src="images/Imagem2.png" class="img-fluid" alt="Aplicativo em um celular">
-          </div>
-          <div class="col-lg-7 col-md-6 hero-content">
-            <h1>Análise de Sinistros em Segundos, não em Horas.</h1>
-            <p class="lead">Nossa Inteligência Artificial gera relatórios detalhados de danos, peças e custos com
-              precisão cirúrgica. Transforme sua operação agora.</p>
-            <a href="#features" class="btn btn-regular">Descubra como</a>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="features" class="bg-light">
-      <div class="container">
-        <div class="row align-items-center">
-          <div class="col-md-6">
-            <div class="content-box">
-              <span>Relatórios com IA</span>
-              <h2>Insights Visuais para Decisões Rápidas</h2>
-              <p>Nossa IA identifica as peças danificadas, estima custos de reparo e mão de obra, e prevê o tempo para
-                o conserto. Tudo a partir de simples fotos.</p>
-              <a href="#" class="btn btn-regular">Solicitar Demonstração</a>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <img src="images/b1162e84-3dca-4312-8818-cd2918b2cc48.png" class="img-fluid rounded shadow-lg"
-              alt="Relatório de danos">
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="how-it-works">
-        <div class="container">
-          <div class="title-block text-center mb-5">
-            <h2>Nossa Análise em Apenas 3 Passos</h2>
-            <p>Transformamos um processo complexo em uma solução simples e rápida.</p>
-          </div>
-          <div class="row">
-            <div class="col-md-4 mb-4">
-              <div class="feature-box text-center">
-                <h3>1. Envio das Fotos</h3>
-                <p>O vistoriador ou o próprio cliente envia as fotos dos danos do veículo através de nosso aplicativo ou portal web de forma simples e intuitiva.</p>
-              </div>
-            </div>
-            <div class="col-md-4 mb-4">
-              <div class="feature-box text-center">
-                <h3>2. Análise por IA</h3>
-                <p>Nossa inteligência artificial processa as imagens, identifica cada peça danificada, e calcula a estimativa de custo para peças, mão de obra e pintura.</p>
-              </div>
-            </div>
-            <div class="col-md-4 mb-4">
-              <div class="feature-box text-center">
-                <h3>3. Relatório Detalhado</h3>
-                <p>Em segundos, um relatório completo e de fácil entendimento é gerado, permitindo que sua equipe tome a decisão certa com agilidade e confiança.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    <section id="testimonials" class="bg-light">
-      <div class="container">
-        <div class="title-block text-center mb-5">
-          <h2>O que nossos clientes dizem</h2>
-          <p>Veja como líderes do setor estão otimizando suas operações com nossa plataforma.</p>
-        </div>
         <div class="row">
-          <div class="col-lg-6 mb-4">
-            <div class="testimonial-box">
-              <div class="row personal-info align-items-center">
-                <div class="col-md-2 col-3">
-                  <div class="profile-picture review-one"></div>
-                </div>
-                <div class="col-md-10 col-9">
-                  <h6>Juliana Martins <span class="rating">5 <i class="icon ion-md-star"></i></span></h6>
-                  <small>Gerente de Sinistros | Seguradora Alfa</small>
-                </div>
-              </div>
-              <p class="mt-3">"A plataforma reduziu nosso tempo de análise de 3 horas para menos de 5 minutos. A
-                precisão dos relatórios é impressionante e já evitou milhares em pagamentos indevidos."</p>
-            </div>
-          </div>
-          <div class="col-lg-6 mb-4">
-            <div class="testimonial-box">
-              <div class="row personal-info align-items-center">
-                <div class="col-md-2 col-3">
-                  <div class="profile-picture review-one"></div> </div>
-                <div class="col-md-10 col-9">
-                  <h6>Ricardo Alves <span class="rating">5 <i class="icon ion-md-star"></i></span></h6>
-                  <small>Diretor de Operações | Frota Logística Total</small>
-                </div>
-              </div>
-              <p class="mt-3">"Gerenciar os danos em nossa frota era um pesadelo logístico. Com esta ferramenta, temos
-                orçamentos padronizados e confiáveis em minutos, agilizando os reparos e a volta dos veículos à
-                operação."</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+          <div class="col-12">
+            <span class="new-badge">Nova Interface de Análises</span>
+            <h1>Gestão Inteligente <br> de Frotas</h1>
+            <p>
+              Nosso sistema de IA ajuda empresas a reduzir custos, aumentar a segurança e melhorar a eficiência operacional da frota. Monitore veículos em tempo real, antecipe manutenções e tome decisões baseadas em dados.
+            </p>
+            <a href="#" class="btn btn-hero-cta">COMEÇAR TESTE GRÁTIS</a>
 
-    <section id="call-to-action">
-      <video playsinline autoplay muted loop id="bgvid">
-        <source src="images/11326271-hd_1080_1920_60fps.mp4" type="video/mp4">
-      </video>
-      <div class="video-overlay"></div>
-      <div class="container text-center">
-        <div class="title-block">
-          <h2>Otimize sua operação e reduza custos agora.</h2>
-          <p class="lead my-4">Descubra como nossa IA pode aumentar a eficiência e a lucratividade da sua gestão de
-            sinistros.</p>
-          <a href="#" class="btn btn-regular">Comece o Teste Gratuito</a>
+            <div class="hero-visual">
+              <div class="glass-card floating-card">
+                  <h5>Relatórios em Tempo Real</h5>
+                  <p>Acesse dashboards customizáveis e gere insights instantâneos sobre o desempenho da sua frota.</p>
+                  <a href="#">Explorar funcionalidade &rarr;</a>
+              </div>
+              
+              <div class="glass-card main-ui-card">
+                <img src="https://i.imgur.com/gKq1Jaj.png" alt="Product user interface showcase">
+              </div>
+
+            </div>
+
+          </div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer>
-    <div class="container">
-      <div class="row">
-        <div class="col-md-3 col-6">
-          <h5>Produto</h5>
-          <ul>
-            <li><a href="#features">Funcionalidades</a></li>
-            <li><a href="#how-it-works">Como Funciona</a></li>
-            <li><a href="#">Segurança</a></li>
-            <li><a href="#">Integrações</a></li>
-          </ul>
-        </div>
-        <div class="col-md-3 col-6">
-          <h5>Empresa</h5>
-          <ul>
-            <li><a href="#">Sobre Nós</a></li>
-            <li><a href="#">Carreiras</a></li>
-            <li><a href="#">Imprensa</a></li>
-            <li><a href="#">Contato</a></li>
-          </ul>
-        </div>
-        <div class="col-md-3 col-6">
-          <h5>Recursos</h5>
-          <ul>
-            <li><a href="#">Blog</a></li>
-            <li><a href="#">Estudos de Caso</a></li>
-            <li><a href="#">Tutoriais em Vídeo</a></li>
-            <li><a href="#">Suporte</a></li>
-          </ul>
-        </div>
-        <div class="col-md-3 col-12 mt-4 mt-md-0">
-          <h5>Ecar fleet IA</h5>
-          <p>Análise de sinistros automotivos potencializada por Inteligência Artificial. Mais velocidade, precisão e
-            economia para sua operação.</p>
-          <p><a href="mailto:contato@fleetia.com" class="external-links">contato@fleetia.com</a></p>
-        </div>
-      </div>
-      <div class="divider"></div>
-      <div class="row">
-        <div class="col-md-6 col-12 social-icons">
-          <a href="#"><i class="icon ion-logo-facebook"></i></a>
-          <a href="#"><i class="icon ion-logo-instagram"></i></a>
-          <a href="#"><i class="icon ion-logo-twitter"></i></a>
-          <a href="#"><i class="icon ion-logo-youtube"></i></a>
-        </div>
-        <div class="col-md-6 col-12 text-md-right mt-3 mt-md-0">
-          <small>2025 &copy; Ecar fleet. Todos os direitos reservados.</small>
-        </div>
-      </div>
-    </div>
-  </footer>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+    integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+    crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+    integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+    crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+    integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+    crossorigin="anonymous"></script>
 
-  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
-    integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
-    crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"
-    integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49"
-    crossorigin="anonymous"></script>
-  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/js/bootstrap.min.js"
-    integrity="sha384-smHYKdLADwkXOn1EmN1qk/HfnUcbVRZyYmZ4qpPea6sjB/pTJ0euyQp0Mk8ck+5T"
-    crossorigin="anonymous"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const themeToggleButton = document.getElementById('theme-toggle-btn');
+        const themeIcon = document.getElementById('theme-icon');
+
+        const sunIcon = `<path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path><circle cx="12" cy="12" r="5"></circle>`;
+        const moonIcon = `<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>`;
+
+        const applyTheme = (isLight) => {
+            document.body.classList.toggle('light-theme', isLight);
+            themeIcon.innerHTML = isLight ? moonIcon : sunIcon;
+            localStorage.setItem('theme', isLight ? 'light' : 'dark');
+        };
+        
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme');
+        
+        // Define o tema inicial
+        applyTheme(savedTheme ? savedTheme === 'light' : !prefersDark);
+        
+        // Adiciona o evento de clique
+        themeToggleButton.addEventListener('click', () => {
+            const isLight = document.body.classList.contains('light-theme');
+            applyTheme(!isLight);
+        });
+    });
+  </script>
 </body>
 </html>

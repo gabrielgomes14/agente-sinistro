@@ -1,162 +1,148 @@
-import os
-import base64
 import json
-import httpx
 from fastapi import FastAPI, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from typing import Dict, Any, List
-from datetime import datetime
 
-# --- Pydantic Model for Chat Request ---
-class ChatQuery(BaseModel):
-    question: str
-
-# --- FastAPI App Initialization ---
-app = FastAPI(title="Assistente de Frota IA API")
-
-# --- CORS Middleware ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+# Importa os modelos e os serviços completos
+from models import ChatQuery, RouteOptimizationRequest, MaintenanceReport
+from services import (
+    GeminiService,
+    FirebaseService,
+    OpenRouteService,
+    OPENROUTESERVICE_API_KEY,
+    encode_image_to_base64
 )
 
 # --- Gemini API Configuration ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
-# --- Helper Function for Image Encoding ---
-def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
-    try:
-        content = file.file.read()
-        encoded_data = base64.b64encode(content).decode('utf-8')
-        return {"mime_type": file.content_type, "data": encoded_data}
-    finally:
-        file.file.close()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# --- Root endpoint ---
-@app.get("/")
+# Instancia o serviço do ORS
+ors_service = OpenRouteService(api_key=OPENROUTESERVICE_API_KEY)
+
+# --- Endpoints da API ---
+
+@app.get("/", tags=["Root"])
 def root():
-    return {"message": "API Assistente de Frota IA funcionando! Use /chat ou /analisar"}
+    return {"message": "API Assistente de Frota IA v2.0 funcionando!"}
 
-# ==========================================================
-# ENDPOINT 1: CHAT DE GESTÃO DE FROTAS
-# ==========================================================
-@app.post("/chat", summary="Conversational Fleet Management Expert")
-async def chat_with_fleet_expert(query: ChatQuery) -> Dict[str, str]:
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set.")
-
-    expert_prompt = f"""
+@app.post("/chat", tags=["Conversacional"])
+async def chat_with_fleet_expert(query: ChatQuery):
+    prompt = f"""
     Aja como um especialista em gestão de frotas chamado "Assistente de Frota IA".
-    Sua função é fornecer conselhos claros, práticos e úteis para motoristas.
     Seu tom deve ser amigável, profissional e direto.
     Responda à seguinte pergunta do condutor: "{query.question}"
     """
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    answer = await GeminiService.generate_content(payload)
+    return {"answer": answer}
 
-    payload = {
-        "contents": [{"parts": [{"text": expert_prompt}]}],
-        "generationConfig": {
-            "temperature": 0.7,
-            "topP": 1.0,
-            "maxOutputTokens": 2048,
-        }
-    }
-    headers = {"Content-Type": "application/json"}
-    params = {"key": GEMINI_API_KEY}
-
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(GEMINI_API_URL, json=payload, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            if "candidates" in data and data["candidates"]:
-                text_content = data["candidates"][0]["content"]["parts"][0]["text"]
-                return {"answer": text_content}
-
-            raise HTTPException(status_code=500, detail="Could not extract content from Gemini API response.")
-
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=f"Error from Gemini API: {e.response.text}")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
-
-# ==========================================================
-# ENDPOINT 2: ANÁLISE DE SINISTROS
-# ==========================================================
-@app.post("/analisar", summary="Analyze Vehicle Damage Images")
-async def analisar(
-    imagem: List[UploadFile] = Form(...),
-    localizacao: str = Form(...),
-    modelo: str = Form(...),
-    ano: str = Form(...),
-    relato_motorista: str = Form(...)
-) -> Dict[str, Any]:
-
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not set.")
-
+@app.post("/analisar-sinistro", tags=["Sinistros"])
+async def analisar_sinistro(imagens: List[UploadFile] = Form(...), localizacao: str = Form(...), modelo: str = Form(...), ano: str = Form(...), relato_motorista: str = Form(...)):
     prompt = f"""
-    Você é um especialista em análise de sinistros de veículos.
-    Analise as imagens de um {modelo} ano {ano} e o relato do motorista: "{relato_motorista}".
-    Localização para cotação: {localizacao}.
-
-    Retorne **apenas** um JSON exatamente no formato:
-
-    {{
-      "analiseGeral": {{
-        "nivelDano": "...",
-        "nivelUrgencia": "...",
-        "areaVeiculo": "..."
-      }},
-      "descricaoDanos": "...",
-      "coerenciaRelato": "...",
-      "pecasNecessarias": [{{"nome": "...", "custo": 123.45}}],
-      "estimativas": {{
-        "tempoReparo": "...",
-        "custoTotal": 123.45
-      }},
-      "carModel": "{modelo} {ano}",
-      "createdAt": "{datetime.now().strftime('%d de %B de %Y às %H:%M:%S UTC-3')}"
-    }}
-
-    Não adicione campos extras. Use valores realistas em Reais (BRL) para {localizacao}.
+    Você é um perito em sinistros de veículos. Analise as imagens de um {modelo} {ano} e o relato: "{relato_motorista}".
+    A cotação deve ser baseada na região de {localizacao}, Brasil.
+    Retorne **apenas** um JSON com: analiseGeral (nivelDano, nivelUrgencia, areaVeiculo), descricaoDanos, 
+    coerenciaRelato, pecasNecessarias (lista de nome e custo), estimativas (tempoReparo, custoTotal), carModel.
+    Use valores em Reais (BRL).
     """
-
-    image_parts = [{"inline_data": encode_image_to_base64(file)} for file in imagem]
-
+    image_parts = [{"inline_data": await encode_image_to_base64(file)} for file in imagens]
     payload = {
         "contents": [{"parts": [{"text": prompt}, *image_parts]}],
-        "generationConfig": {
-            "temperature": 0.4,
-            "maxOutputTokens": 4096,
-            "responseMimeType": "application/json",
-        }
+        "generationConfig": {"responseMimeType": "application/json"}
     }
-    headers = {"Content-Type": "application/json"}
-    params = {"key": GEMINI_API_KEY}
+
+    analysis_text = await GeminiService.generate_content(payload)
+    analysis_json = json.loads(analysis_text)
+
+    image_urls = await FirebaseService.upload_images(imagens)
+    analysis_json['imageUrls'] = image_urls
+    analysis_json['status'] = "Pendente"
+
+    saved_data = await FirebaseService.save_document("sinistros", analysis_json)
+    return saved_data
+
+
+@app.post("/relatar-manutencao", tags=["Manutenção"])
+async def report_maintenance(report: MaintenanceReport):
+    prompt = f"""
+    Aja como um mecânico especialista. Analise o relato para o veículo {report.vehicle_id} com {report.current_km} km:
+    "{report.driver_report}"
+    Retorne um JSON com: diagnostico_preliminar, componentes_provaveis (lista de strings), 
+    nivel_urgencia ("Baixa", "Média", "Alta", "Crítica - Parar Imediatamente"), acao_recomendada.
+    """
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"responseMimeType": "application/json"}
+    }
+
+    analysis_text = await GeminiService.generate_content(payload)
+    analysis_json = json.loads(analysis_text)
+
+    analysis_json.update({
+        "vehicle_id": report.vehicle_id,
+        "driver_report": report.driver_report,
+        "km": report.current_km,
+        "status": "Aberto"
+    })
+
+    saved_data = await FirebaseService.save_document("manutencao", analysis_json)
+    return saved_data
+
+# --- ENDPOINT DE ROTA ATUALIZADO COM SALVAMENTO ---
+@app.post("/otimizar-e-salvar-rota", summary="Calcula a rota, gera um resumo e salva no Firestore", tags=["Otimização"])
+async def optimize_and_save_route(request: RouteOptimizationRequest) -> Dict[str, Any]:
+
+    all_addresses = [request.origin] + [stop.address for stop in request.stops] + [request.destination]
 
     try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            response = await client.post(GEMINI_API_URL, json=payload, headers=headers, params=params)
-            response.raise_for_status()
-            data = response.json()
-            
-            if "candidates" in data and data["candidates"]:
-                text_content = data["candidates"][0]["content"]["parts"][0]["text"]
-                try:
-                    json_content = json.loads(text_content)  # CONVERTE string JSON em dict Python
-                except json.JSONDecodeError:
-                    raise HTTPException(status_code=500, detail="Resposta do Gemini não é JSON válido")
-                return json_content  # FastAPI envia JSON real
-            
-            raise HTTPException(status_code=500, detail="Could not extract content from Gemini API response.")
-    
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=e.response.status_code, detail=f"Error from Gemini API: {e.response.text}")
+        coordinates = await ors_service.geocode_addresses(all_addresses)
+        if None in coordinates:
+            failed_address_index = coordinates.index(None)
+            failed_address = all_addresses[failed_address_index]
+            raise HTTPException(status_code=400, detail=f"Não foi possível encontrar coordenadas para: '{failed_address}'")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+         raise HTTPException(status_code=500, detail=f"Erro durante a geocodificação: {str(e)}")
+
+    try:
+        route_data = await ors_service.get_route(coordinates)
+        summary = route_data['features'][0]['properties']['summary']
+        distance_km = round(summary['distance'] / 1000, 2)
+        duration_min = round(summary['duration'] / 60)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao calcular a rota: {str(e)}")
+
+    summary_prompt = f"""
+    Crie um resumo amigável para um motorista sobre a rota planejada.
+    - Nome da Rota: {request.routeName}
+    - Origem: {request.origin}
+    - Destino: {request.destination}
+    - Paradas: {', '.join([s.address for s in request.stops])}
+    - Distância: {distance_km} km
+    - Duração: {duration_min} minutos
+    O resumo deve ser breve e claro.
+    """
+    payload = {"contents": [{"parts": [{"text": summary_prompt}]}]}
+    natural_summary = await GeminiService.generate_content(payload)
+
+    # Prepara o objeto de dados para salvar no Firestore
+    route_to_save = {
+        "routeName": request.routeName,
+        "origin": request.origin,
+        "destination": request.destination,
+        "stops": [stop.dict() for stop in request.stops],
+        "status": "Planejada",
+        "natural_summary": natural_summary,
+        "route_data": {
+            "total_distance_km": distance_km,
+            "total_duration_minutes": duration_min,
+            "coordinates_used": coordinates
+        }
+    }
+
+    # Salva o resultado em uma nova coleção "rotas"
+    saved_route = await FirebaseService.save_document("rotas", route_to_save)
+
+    return saved_route
