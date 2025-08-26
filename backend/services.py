@@ -16,12 +16,11 @@ load_dotenv()
 
 # --- Configurações ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET")
 OPENROUTESERVICE_API_KEY = os.environ.get("OPENROUTESERVICE_API_KEY")
-# A chave do Google Maps foi removida.
+OPENCAGE_API_KEY = os.environ.get("OPENCAGE_API_KEY")
 
-# --- Inicialização do Firebase (inalterado) ---
+# --- Inicialização do Firebase ---
 try:
     cred = credentials.Certificate("firebase-credentials.json")
     firebase_admin.initialize_app(cred, {'storageBucket': FIREBASE_STORAGE_BUCKET})
@@ -31,14 +30,13 @@ except Exception as e:
     print(f"AVISO: Não foi possível inicializar o Firebase. Erro: {e}")
     db, bucket = None, None
 
-# --- Funções e Classes de Serviço (GeminiService e FirebaseService inalteradas) ---
 def encode_image_to_base64(file: UploadFile) -> Dict[str, str]:
     content = file.file.read()
     encoded_data = base64.b64encode(content).decode('utf-8')
     return {"mime_type": file.content_type, "data": encoded_data}
 
 class GeminiService:
-    # ... (código completo inalterado)
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     @staticmethod
     async def generate_content(payload: Dict[str, Any]) -> str:
         if not GEMINI_API_KEY:
@@ -47,7 +45,7 @@ class GeminiService:
         params = {"key": GEMINI_API_KEY}
         try:
             async with httpx.AsyncClient(timeout=90.0) as client:
-                response = await client.post(GEMINI_API_URL, json=payload, headers=headers, params=params)
+                response = await client.post(GeminiService.GEMINI_API_URL, json=payload, headers=headers, params=params)
                 response.raise_for_status()
                 data = response.json()
                 if "candidates" in data and data["candidates"]:
@@ -59,7 +57,6 @@ class GeminiService:
             raise HTTPException(status_code=500, detail=f"Erro inesperado no Gemini Service: {str(e)}")
 
 class FirebaseService:
-    # ... (código completo inalterado)
     @staticmethod
     async def upload_images(files: List[UploadFile]) -> List[str]:
         if not bucket: raise HTTPException(status_code=500, detail="Firebase Storage não inicializado.")
@@ -82,46 +79,48 @@ class FirebaseService:
         data['timestamp'] = str(data['timestamp'])
         return data
 
-# --- CLASSE DE ROTEIRIZAÇÃO ATUALIZADA PARA USAR APENAS NOMINATIM ---
 class RoutingService:
     ORS_BASE_URL = "https://api.openrouteservice.org"
-    NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org"
+    OPENCAGE_BASE_URL = "https://api.opencagedata.com/geocode/v1/json"
 
     def __init__(self):
         if not OPENROUTESERVICE_API_KEY:
             raise ValueError("Chave da API OpenRouteService não fornecida.")
-        self.ors_api_key = OPENROUTESERVICE_API_KEY
-        self.ors_headers = {'Authorization': self.ors_api_key, 'Content-Type': 'application/json'}
-        # Headers para a Nominatim com o User-Agent obrigatório.
-        # !!! IMPORTANTE: Substitua pelo nome da sua aplicação e seu e-mail de contato !!!
-        self.nominatim_headers = {'User-Agent': 'AssistenteDeFrotaIA/1.0 (seu.email.de.contato@exemplo.com)'}
-
-    async def _geocode_address_with_nominatim_async(self, address: str, client: httpx.AsyncClient) -> Optional[List[float]]:
-        params = {'q': address, 'format': 'jsonv2', 'limit': 1}
-        try:
-            # Respeitar o limite de 1 requisição por segundo da Nominatim para evitar bloqueios
-            await asyncio.sleep(1)
+        if not OPENCAGE_API_KEY:
+            raise ValueError("Chave da API do OpenCage não fornecida.")
             
-            response = await client.get(self.NOMINATIM_BASE_URL + "/search", params=params, headers=self.nominatim_headers)
+        self.ors_api_key = OPENROUTESERVICE_API_KEY
+        self.opencage_api_key = OPENCAGE_API_KEY
+        self.ors_headers = {'Authorization': self.ors_api_key, 'Content-Type': 'application/json'}
+
+    async def _geocode_address_with_opencage_async(self, address: str, client: httpx.AsyncClient) -> Optional[List[float]]:
+        params = {
+            'q': address,
+            'key': self.opencage_api_key,
+            'countrycode': 'br',
+            'language': 'pt',
+            'limit': 1
+        }
+        try:
+            await asyncio.sleep(1) # Respeita o rate limit do OpenCage (1/seg)
+            response = await client.get(self.OPENCAGE_BASE_URL, params=params)
             response.raise_for_status()
             data = response.json()
-
-            if data:
-                # Nominatim retorna [lon, lat] por padrão, que é o formato esperado pelo ORS.
-                return [float(data[0]['lon']), float(data[0]['lat'])]
-            return None # Endereço não encontrado
+            if data and data['results']:
+                geometry = data['results'][0]['geometry']
+                return [geometry['lng'], geometry['lat']]
+            return None
         except httpx.HTTPStatusError as e:
-            print(f"Erro HTTP ao geocodificar '{address}' com Nominatim: {e.response.text}")
+            print(f"Erro HTTP ao geocodificar com OpenCage: {e.response.text}")
             return None
         except Exception as e:
-            print(f"Erro inesperado ao geocodificar '{address}' com Nominatim: {e}")
+            print(f"Erro inesperado ao geocodificar com OpenCage: {e}")
             return None
 
-    async def geocode_addresses_with_nominatim(self, addresses: List[str]) -> List[Optional[List[float]]]:
+    async def geocode_addresses_with_opencage(self, addresses: List[str]) -> List[Optional[List[float]]]:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            tasks = [self._geocode_address_with_nominatim_async(addr, client) for addr in addresses]
-            results = await asyncio.gather(*tasks)
-            return results
+            tasks = [self._geocode_address_with_opencage_async(addr, client) for addr in addresses]
+            return await asyncio.gather(*tasks)
 
     async def get_route_with_ors(self, coordinates: List[List[float]]) -> Dict[str, Any]:
         body = {"coordinates": coordinates}
