@@ -9,29 +9,29 @@ from models import ChatQuery, RouteOptimizationRequest, MaintenanceReport
 from services import (
     GeminiService, 
     FirebaseService, 
-    OpenRouteService, 
-    OPENROUTESERVICE_API_KEY,
+    RoutingService, # <-- Alterado aqui
     encode_image_to_base64
 )
 
 # --- Inicialização da App FastAPI ---
 app = FastAPI(
     title="Assistente de Frota IA 🦾 (Completo)",
-    description="API com otimização de rotas e salvamento de dados no Firebase.",
-    version="2.0.0"
+    description="API com otimização de rotas (Nominatim + ORS) e salvamento de dados no Firebase.",
+    version="2.1.0" # <-- Versão atualizada
 )
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# Instancia o serviço do ORS
-ors_service = OpenRouteService(api_key=OPENROUTESERVICE_API_KEY)
+# Instancia o novo serviço de roteirização
+routing_service = RoutingService() # <-- Alterado aqui
 
 # --- Endpoints da API ---
 
 @app.get("/", tags=["Root"])
 def root():
-    return {"message": "API Assistente de Frota IA v2.0 funcionando!"}
+    return {"message": "API Assistente de Frota IA v2.1 funcionando com Nominatim!"}
 
+# ... (Endpoints /chat, /analisar-sinistro, /relatar-manutencao permanecem inalterados) ...
 @app.post("/chat", tags=["Conversacional"])
 async def chat_with_fleet_expert(query: ChatQuery):
     # ... (código inalterado)
@@ -98,22 +98,23 @@ async def report_maintenance(report: MaintenanceReport):
     saved_data = await FirebaseService.save_document("manutencao", analysis_json)
     return saved_data
 
-# --- ENDPOINT DE ROTA ATUALIZADO COM SALVAMENTO ---
 @app.post("/otimizar-e-salvar-rota", summary="Calcula a rota, gera um resumo e salva no Firestore", tags=["Otimização"])
 async def optimize_and_save_route(request: RouteOptimizationRequest) -> Dict[str, Any]:
     
     all_addresses = [request.origin] + [stop.address for stop in request.stops] + [request.destination]
     
     try:
-        coordinates = await ors_service.geocode_addresses(all_addresses)
+        # Usa o novo serviço para geocodificar com Nominatim
+        coordinates = await routing_service.geocode_addresses_with_nominatim(all_addresses) # <-- Alterado aqui
         if None in coordinates:
             failed_address = all_addresses[coordinates.index(None)]
-            raise HTTPException(status_code=400, detail=f"Não foi possível encontrar coordenadas para: '{failed_address}'")
+            raise HTTPException(status_code=400, detail=f"Nominatim não encontrou coordenadas para: '{failed_address}'")
     except Exception as e:
          raise HTTPException(status_code=500, detail=f"Erro durante a geocodificação: {str(e)}")
 
     try:
-        route_data = await ors_service.get_route(coordinates)
+        # O cálculo da rota ainda usa o ORS, que é excelente para isso
+        route_data = await routing_service.get_route_with_ors(coordinates) # <-- Alterado aqui
         summary = route_data['features'][0]['properties']['summary']
         distance_km = round(summary['distance'] / 1000, 2)
         duration_min = round(summary['duration'] / 60)

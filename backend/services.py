@@ -1,4 +1,4 @@
-# services.py (Versão completa com Mapas e Firebase)
+# services.py (Versão completa com Mapas e Firebase - Adaptado para Nominatim)
 import os
 import httpx
 import json
@@ -88,43 +88,53 @@ class FirebaseService:
         doc_ref = db.collection(collection).document()
         doc_ref.set(data)
         data['id'] = doc_ref.id
+        # A conversão para string é necessária pois o timestamp não é serializável em JSON diretamente
+        data['timestamp'] = str(data['timestamp'])
         return data
 
-class OpenRouteService:
-    # ... (código inalterado)
-    BASE_URL = "https://api.openrouteservice.org"
+# --- CLASSE DE ROTEIRIZAÇÃO ATUALIZADA ---
+class RoutingService:
+    ORS_BASE_URL = "https://api.openrouteservice.org"
+    NOMINATIM_BASE_URL = "https://nominatim.openstreetmap.org"
 
-    def __init__(self, api_key: str):
-        if not api_key:
+    def __init__(self):
+        # A chave do ORS ainda é necessária para o cálculo da rota
+        if not OPENROUTESERVICE_API_KEY:
             raise ValueError("Chave da API OpenRouteService não fornecida.")
-        self.api_key = api_key
-        self.headers = {'Authorization': self.api_key, 'Content-Type': 'application/json'}
+        self.ors_api_key = OPENROUTESERVICE_API_KEY
+        self.ors_headers = {'Authorization': self.ors_api_key, 'Content-Type': 'application/json'}
+        # Headers para a Nominatim com o User-Agent obrigatório
+        self.nominatim_headers = {'User-Agent': 'AssitenteDeFrotaIA/1.0 (seu-email@provedor.com)'}
 
-    async def _geocode_address_async(self, address: str, client: httpx.AsyncClient) -> Optional[List[float]]:
-        params = {'api_key': self.api_key, 'text': address, 'size': 1}
+    async def _geocode_address_with_nominatim_async(self, address: str, client: httpx.AsyncClient) -> Optional[List[float]]:
+        params = {'q': address, 'format': 'jsonv2', 'limit': 1}
         try:
-            response = await client.get(f"{self.BASE_URL}/v2/geocode/search", params=params)
+            # Respeitar o limite de 1 requisição por segundo da Nominatim
+            await asyncio.sleep(1)
+            
+            response = await client.get(self.NOMINATIM_BASE_URL + "/search", params=params, headers=self.nominatim_headers)
             response.raise_for_status()
             data = response.json()
-            if data['features']:
-                return data['features'][0]['geometry']['coordinates']
+            if data:
+                # Nominatim retorna lon/lat, ORS espera lon/lat. Perfeito.
+                return [float(data[0]['lon']), float(data[0]['lat'])]
             return None
         except httpx.HTTPStatusError:
             return None
 
-    async def geocode_addresses(self, addresses: List[str]) -> List[Optional[List[float]]]:
-        async with httpx.AsyncClient() as client:
-            tasks = [self._geocode_address_async(addr, client) for addr in addresses]
+    async def geocode_addresses_with_nominatim(self, addresses: List[str]) -> List[Optional[List[float]]]:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            tasks = [self._geocode_address_with_nominatim_async(addr, client) for addr in addresses]
             results = await asyncio.gather(*tasks)
             return results
 
-    async def get_route(self, coordinates: List[List[float]]) -> Dict[str, Any]:
+    async def get_route_with_ors(self, coordinates: List[List[float]]) -> Dict[str, Any]:
         body = {"coordinates": coordinates}
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
-                f"{self.BASE_URL}/v2/directions/driving-car/json",
+                f"{self.ORS_BASE_URL}/v2/directions/driving-car/json",
                 json=body,
-                headers=self.headers
+                headers=self.ors_headers
             )
             response.raise_for_status()
             return response.json()
