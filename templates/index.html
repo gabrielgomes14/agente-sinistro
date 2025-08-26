@@ -70,14 +70,6 @@
           { key: 'modelo', text: 'Ótimo! Qual o <strong>Modelo e Ano do Carro</strong>?' },
           { key: 'relato', text: 'Por último, descreva o <strong>Relato do Motorista</strong> sobre o que aconteceu.' }
       ];
-      
-      // <<< NOVO: Perguntas para o fluxo de Rota >>>
-      const routeQuestions = [
-          { key: 'routeName', text: 'Legal! Vamos criar uma rota. Qual será o <strong>Nome da Rota</strong> (ex: "Entregas da Manhã")?' },
-          { key: 'origin', text: 'Qual o <strong>Endereço de Partida</strong> (origem)?' },
-          { key: 'stops', text: 'Adicione uma <strong>Parada</strong>. Se não houver mais paradas, digite <strong>pronto</strong>.' },
-          { key: 'destination', text: 'E para finalizar, qual o <strong>Endereço de Destino</strong>?' }
-      ];
 
       // ==============================================
       // 2. FUNÇÕES DO CHAT
@@ -125,21 +117,21 @@
       // 3. LÓGICA DOS MODOS DE CONVERSA E TEMA
       // ==============================================
       function setupTheme() {
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const savedTheme = localStorage.getItem('theme');
+          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const savedTheme = localStorage.getItem('theme');
 
-        if (savedTheme) {
-            document.body.classList.toggle('light-theme', savedTheme === 'light');
-        } else if (prefersDark) {
-            document.body.classList.remove('light-theme');
-        } else {
-            document.body.classList.add('light-theme');
-        }
+          if (savedTheme) {
+              document.body.classList.toggle('light-theme', savedTheme === 'light');
+          } else if (prefersDark) {
+              document.body.classList.remove('light-theme');
+          } else {
+              document.body.classList.add('light-theme');
+          }
 
-        themeToggleBtn.addEventListener('click', () => {
-            const isLight = document.body.classList.toggle('light-theme');
-            localStorage.setItem('theme', isLight ? 'light' : 'dark');
-        });
+          themeToggleBtn.addEventListener('click', () => {
+              const isLight = document.body.classList.toggle('light-theme');
+              localStorage.setItem('theme', isLight ? 'light' : 'dark');
+          });
       }
       
       async function sendFleetManagementQuery(userText) {
@@ -211,109 +203,10 @@
           askNextAnalysisQuestion();
       }
 
-      // --- Funções de Otimização de Rota ---
-      
-      function startRoutePlanningFlow() {
-          conversationState = { mode: 'routing', currentStep: 0, isExpectingAnswer: true, collectedData: { stops: [] } };
-          isWelcoming = false;
-          chatLog.innerHTML = '';
-          addMessage('ai', "Vamos planejar sua rota! Siga as instruções.");
-          askNextRouteQuestion();
-      }
-
-      function askNextRouteQuestion() {
-          if (conversationState.currentStep < routeQuestions.length) {
-              const question = routeQuestions[conversationState.currentStep];
-              addMessage('ai', question.text, true);
-              chatInput.disabled = false;
-              chatInput.placeholder = 'Responda aqui...';
-              chatInput.focus();
-          } else {
-              chatInput.disabled = true;
-              chatInput.placeholder = 'Coletando dados da rota...';
-              addMessage('ai', 'Obrigado! Todos os dados foram coletados. Otimizando a rota para você...');
-              enviarDadosParaOtimizacao(conversationState.collectedData);
-          }
-      }
-
-      function processRouteAnswer(answer) {
-          if (!conversationState.isExpectingAnswer || !answer) return;
-          addMessage('user', answer);
-          const currentQuestion = routeQuestions[conversationState.currentStep];
-
-          if (currentQuestion.key === 'stops') {
-              if (answer.toLowerCase().trim() === 'pronto') {
-                  conversationState.currentStep++; 
-                  askNextRouteQuestion();
-              } else {
-                  conversationState.collectedData.stops.push({ address: answer });
-                  addMessage('ai', 'Parada adicionada! Qual a <strong>próxima parada</strong>? (Ou digite <strong>pronto</strong> para continuar)');
-                  chatInput.focus();
-              }
-          } else {
-              conversationState.collectedData[currentQuestion.key] = answer;
-              conversationState.currentStep++;
-              askNextRouteQuestion();
-          }
-      }
-
-      async function enviarDadosParaOtimizacao(data) {
-          showTypingIndicator();
-          try {
-              const response = await fetch(`${BACKEND_URL}/otimizar-e-salvar-rota`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                      routeName: data.routeName,
-                      origin: data.origin,
-                      stops: data.stops,
-                      destination: data.destination
-                  })
-              });
-
-              if (!response.ok) {
-                  const errorData = await response.json();
-                  throw new Error(errorData.detail || `Erro na API de otimização: ${response.statusText}`);
-              }
-
-              const routeResult = await response.json();
-              addMessage('ai', 'Rota otimizada com sucesso! Aqui está o resumo:', true);
-              addMessage('ai', gerarRelatorioRotaHTML(routeResult), true);
-
-          } catch (error) {
-              console.error("Erro detalhado na otimização de rota:", error);
-              addMessage('ai', `Ocorreu um erro ao otimizar a rota: ${error.message}`);
-          } finally {
-              setTimeout(() => {
-                  addMessage('ai', 'Se precisar de mais alguma coisa, é só pedir.');
-                  startNewConversation();
-              }, 2000);
-          }
-      }
-
-      function gerarRelatorioRotaHTML(routeData) {
-          const { routeName, natural_summary, route_data } = routeData;
-          const distance = route_data?.total_distance_km || 'N/A';
-          const duration = route_data?.total_duration_minutes || 'N/A';
-
-          return `
-              <div class="report-card">
-                  <h4>Plano de Rota: ${routeName}</h4>
-                  <p><strong>Resumo da IA:</strong><br><em>"${natural_summary || 'Sem resumo disponível.'}"</em></p>
-                  <ul>
-                      <li><strong>Distância Total:</strong> ${distance} km</li>
-                      <li><strong>Duração Estimada:</strong> ${duration} minutos</li>
-                  </ul>
-              </div>
-          `;
-      }
-
-
       // ==============================================
       // 4. EVENT LISTENERS E FUNCIONALIDADES EXTRA
       // ==============================================
       
-      // <<< LISTENER ATUALIZADO PARA SUPORTAR ROTA >>>
       chatInput.addEventListener('keydown', (event) => {
           if (event.key === 'Enter' && chatInput.value.trim() !== '') {
               const userText = chatInput.value.trim();
@@ -323,17 +216,9 @@
                   case 'analysis':
                       processAnalysisAnswer(userText);
                       break;
-                  case 'routing':
-                      processRouteAnswer(userText);
-                      break;
                   case 'qa':
                   default:
-                      if (userText.toLowerCase().startsWith('rota') || userText.toLowerCase().startsWith('roteirizar')) {
-                          addMessage('user', userText);
-                          startRoutePlanningFlow();
-                      } else {
-                          sendFleetManagementQuery(userText);
-                      }
+                      sendFleetManagementQuery(userText);
                       break;
               }
           }
@@ -479,7 +364,7 @@
               const [modelo, ...anoParts] = data.modelo.split(' ');
               
               Array.from(data.imagens).forEach(file => {
-                  formData.append('imagens', file); // API espera 'imagens' (plural)
+                  formData.append('imagens', file);
               });
               formData.append('localizacao', data.cidade);
               formData.append('modelo', modelo || data.modelo);
@@ -488,7 +373,6 @@
 
               const imageBase64Strings = await convertFilesToBase64(data.imagens);
               
-              // <<< CORREÇÃO: Endpoint atualizado para /analisar-sinistro >>>
               const response = await fetch(`${BACKEND_URL}/analisar-sinistro`, { method: 'POST', body: formData });
               if (!response.ok) throw new Error(`Erro na API de análise: ${response.statusText}`);
               
@@ -527,24 +411,24 @@
           }
           
           const html = `
-            <div id="${reportId}" class="report-card">
-              <h4>Relatório de Sinistro - ${reportData.carModel || 'Veículo'}</h4>
-              
-              <p><strong>Análise Geral:</strong></p>
-              <ul>
-                  <li><strong>Área do Veículo:</strong> ${reportData.analiseGeral?.areaVeiculo || 'N/A'}</li>
-                  <li><strong>Nível do Dano:</strong> ${reportData.analiseGeral?.nivelDano || 'N/A'}</li>
-                  <li><strong>Nível de Urgência:</strong> ${reportData.analiseGeral?.nivelUrgencia || 'N/A'}</li>
-              </ul>
+              <div id="${reportId}" class="report-card">
+                  <h4>Relatório de Sinistro - ${reportData.carModel || 'Veículo'}</h4>
+                  
+                  <p><strong>Análise Geral:</strong></p>
+                  <ul>
+                      <li><strong>Área do Veículo:</strong> ${reportData.analiseGeral?.areaVeiculo || 'N/A'}</li>
+                      <li><strong>Nível do Dano:</strong> ${reportData.analiseGeral?.nivelDano || 'N/A'}</li>
+                      <li><strong>Nível de Urgência:</strong> ${reportData.analiseGeral?.nivelUrgencia || 'N/A'}</li>
+                  </ul>
 
-              <p><strong>Descrição Detalhada:</strong><br><em>"${reportData.descricaoDanos || 'Nenhuma descrição fornecida.'}"</em></p>
-              <p><strong>Coerência do Relato:</strong><br><em>"${reportData.coerenciaRelato || 'N/A'}"</em></p>
-              <p><strong>Estimativas:</strong></p>
-              <ul><li><strong>Tempo de Reparo:</strong> ${reportData.estimativas?.tempoReparo || 'N/A'}</li></ul>
+                  <p><strong>Descrição Detalhada:</strong><br><em>"${reportData.descricaoDanos || 'Nenhuma descrição fornecida.'}"</em></p>
+                  <p><strong>Coerência do Relato:</strong><br><em>"${reportData.coerenciaRelato || 'N/A'}"</em></p>
+                  <p><strong>Estimativas:</strong></p>
+                  <ul><li><strong>Tempo de Reparo:</strong> ${reportData.estimativas?.tempoReparo || 'N/A'}</li></ul>
 
-              <div style="margin-top: 10px;">${imagesHTML}</div>
-              <button class="action-button" data-report-id="${reportId}">Baixar Relatório (PDF)</button>
-            </div>
+                  <div style="margin-top: 10px;">${imagesHTML}</div>
+                  <button class="action-button" data-report-id="${reportId}">Baixar Relatório (PDF)</button>
+              </div>
           `;
 
           setTimeout(() => {
@@ -771,7 +655,8 @@
         }
     </style>
 </head>
-<body> <div class="app-layout">
+<body> 
+<div class="app-layout">
     <aside class="sidebar glass-pane">
         <div class="sidebar-header">
             <button id="btn-nova-conversa" class="new-conversation-btn">
@@ -785,8 +670,8 @@
         <h3>Histórico</h3>
         <ul class="history-list" id="history-list"></ul>
         <div class="sidebar-footer">
-            <a href="#">
-                <img id="user-photo" src="data:image/svg+xml;base64,..." alt="Foto do Usuário" class="user-photo">
+            <a href="#" onclick="sairParaAccount()">
+                <img id="user-photo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZHRoPSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMCIgcj0iMyIvPjxwYXRoIGQ9Im03IDE5IDUtMy43NUw3IDE5eiIvPjwvc3ZnPg==" alt="Foto do Usuário" class="user-photo">
                 <span id="user-name" class="user-name">Carregando...</span>
             </a>
         </div>
