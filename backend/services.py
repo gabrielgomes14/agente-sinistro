@@ -17,7 +17,7 @@ load_dotenv()
 
 # --- Configurações ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 FIREBASE_STORAGE_BUCKET = os.environ.get("FIREBASE_STORAGE_BUCKET")
 OPENROUTESERVICE_API_KEY = os.environ.get("OPENROUTESERVICE_API_KEY")
 

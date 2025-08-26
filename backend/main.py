@@ -1,5 +1,5 @@
+# main.py (Versão completa com Mapas e Firebase)
 import json
-import os
 from fastapi import FastAPI, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, Any, List
@@ -7,16 +7,19 @@ from typing import Dict, Any, List
 # Importa os modelos e os serviços completos
 from models import ChatQuery, RouteOptimizationRequest, MaintenanceReport
 from services import (
-    GeminiService,
-    FirebaseService,
-    OpenRouteService,
+    GeminiService, 
+    FirebaseService, 
+    OpenRouteService, 
     OPENROUTESERVICE_API_KEY,
     encode_image_to_base64
 )
 
-# --- Gemini API Configuration ---
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+# --- Inicialização da App FastAPI ---
+app = FastAPI(
+    title="Assistente de Frota IA 🦾 (Completo)",
+    description="API com otimização de rotas e salvamento de dados no Firebase.",
+    version="2.0.0"
+)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
@@ -31,6 +34,7 @@ def root():
 
 @app.post("/chat", tags=["Conversacional"])
 async def chat_with_fleet_expert(query: ChatQuery):
+    # ... (código inalterado)
     prompt = f"""
     Aja como um especialista em gestão de frotas chamado "Assistente de Frota IA".
     Seu tom deve ser amigável, profissional e direto.
@@ -42,6 +46,7 @@ async def chat_with_fleet_expert(query: ChatQuery):
 
 @app.post("/analisar-sinistro", tags=["Sinistros"])
 async def analisar_sinistro(imagens: List[UploadFile] = Form(...), localizacao: str = Form(...), modelo: str = Form(...), ano: str = Form(...), relato_motorista: str = Form(...)):
+    # ... (código inalterado)
     prompt = f"""
     Você é um perito em sinistros de veículos. Analise as imagens de um {modelo} {ano} e o relato: "{relato_motorista}".
     A cotação deve ser baseada na região de {localizacao}, Brasil.
@@ -49,25 +54,26 @@ async def analisar_sinistro(imagens: List[UploadFile] = Form(...), localizacao: 
     coerenciaRelato, pecasNecessarias (lista de nome e custo), estimativas (tempoReparo, custoTotal), carModel.
     Use valores em Reais (BRL).
     """
-    image_parts = [{"inline_data": await encode_image_to_base64(file)} for file in imagens]
+    image_parts = [{"inline_data": encode_image_to_base64(file)} for file in imagens]
     payload = {
         "contents": [{"parts": [{"text": prompt}, *image_parts]}],
         "generationConfig": {"responseMimeType": "application/json"}
     }
-
+    
     analysis_text = await GeminiService.generate_content(payload)
     analysis_json = json.loads(analysis_text)
-
+    
     image_urls = await FirebaseService.upload_images(imagens)
     analysis_json['imageUrls'] = image_urls
     analysis_json['status'] = "Pendente"
-
+    
     saved_data = await FirebaseService.save_document("sinistros", analysis_json)
     return saved_data
 
 
 @app.post("/relatar-manutencao", tags=["Manutenção"])
 async def report_maintenance(report: MaintenanceReport):
+    # ... (código inalterado)
     prompt = f"""
     Aja como um mecânico especialista. Analise o relato para o veículo {report.vehicle_id} com {report.current_km} km:
     "{report.driver_report}"
@@ -78,31 +84,30 @@ async def report_maintenance(report: MaintenanceReport):
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"responseMimeType": "application/json"}
     }
-
+    
     analysis_text = await GeminiService.generate_content(payload)
     analysis_json = json.loads(analysis_text)
-
+    
     analysis_json.update({
         "vehicle_id": report.vehicle_id,
         "driver_report": report.driver_report,
         "km": report.current_km,
         "status": "Aberto"
     })
-
+    
     saved_data = await FirebaseService.save_document("manutencao", analysis_json)
     return saved_data
 
 # --- ENDPOINT DE ROTA ATUALIZADO COM SALVAMENTO ---
 @app.post("/otimizar-e-salvar-rota", summary="Calcula a rota, gera um resumo e salva no Firestore", tags=["Otimização"])
 async def optimize_and_save_route(request: RouteOptimizationRequest) -> Dict[str, Any]:
-
+    
     all_addresses = [request.origin] + [stop.address for stop in request.stops] + [request.destination]
-
+    
     try:
         coordinates = await ors_service.geocode_addresses(all_addresses)
         if None in coordinates:
-            failed_address_index = coordinates.index(None)
-            failed_address = all_addresses[failed_address_index]
+            failed_address = all_addresses[coordinates.index(None)]
             raise HTTPException(status_code=400, detail=f"Não foi possível encontrar coordenadas para: '{failed_address}'")
     except Exception as e:
          raise HTTPException(status_code=500, detail=f"Erro durante a geocodificação: {str(e)}")
@@ -127,7 +132,7 @@ async def optimize_and_save_route(request: RouteOptimizationRequest) -> Dict[str
     """
     payload = {"contents": [{"parts": [{"text": summary_prompt}]}]}
     natural_summary = await GeminiService.generate_content(payload)
-
+    
     # Prepara o objeto de dados para salvar no Firestore
     route_to_save = {
         "routeName": request.routeName,
@@ -145,5 +150,5 @@ async def optimize_and_save_route(request: RouteOptimizationRequest) -> Dict[str
 
     # Salva o resultado em uma nova coleção "rotas"
     saved_route = await FirebaseService.save_document("rotas", route_to_save)
-
+    
     return saved_route
