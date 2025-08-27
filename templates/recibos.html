@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Análise de Recibos</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        // Sincroniza o tema (claro/escuro) com a página principal
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        if (savedTheme === 'light') { document.documentElement.classList.add('light-theme'); }
+    </script>
+    
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+      import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+      
+      const firebaseConfig = {
+        apiKey: "AIzaSyB7e1IpR2l0wvxPE0vdkUGXO6PT74cKSu4",
+        authDomain: "ecar-agente.firebaseapp.com",
+        projectId: "ecar-agente",
+        storageBucket: "ecar-agente.appspot.com",
+        messagingSenderId: "894019220547",
+        appId: "1:894019220547:web:af042385f29544e2a810f6",
+        measurementId: "G-1J4W027QZM"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+
+      document.addEventListener('DOMContentLoaded', () => {
+        onAuthStateChanged(auth, user => {
+            if (!user) {
+                alert("Você precisa estar logado para acessar esta funcionalidade.");
+                window.location.href = 'landing.html';
+            }
+        });
+        setupReceiptScanner();
+      });
+
+      const BACKEND_URL = "https://agente-sinistro-api.onrender.com";
+
+      function setupReceiptScanner() {
+        const uploadButton = document.getElementById('upload-button');
+        const fileInput = document.getElementById('file-input');
+        const resultContainer = document.getElementById('result-container');
+        const imagePreview = document.getElementById('image-preview');
+
+        uploadButton.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                analisarRecibo(file);
+            }
+            // Limpa o input para permitir selecionar o mesmo arquivo novamente
+            event.target.value = ''; 
+        });
+
+        async function analisarRecibo(file) {
+            resultContainer.innerHTML = `<div class="spinner"></div><p>Analisando imagem com a IA...</p>`;
+            imagePreview.src = URL.createObjectURL(file);
+            imagePreview.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('imagem', file);
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/analisar-recibo`, { 
+                    method: 'POST', 
+                    body: formData 
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Erro na API');
+                }
+                const resultData = await response.json();
+                resultContainer.innerHTML = gerarCardReciboHTML(resultData);
+            } catch (error) {
+                resultContainer.innerHTML = `<div class="report-card status-error"><p>Ocorreu um erro ao analisar o recibo: ${error.message}</p></div>`;
+            }
+        }
+
+        function gerarCardReciboHTML(data) {
+          return `
+            <div class="report-card">
+                <h4>Recibo Digitalizado</h4>
+                <ul>
+                    <li><strong>Estabelecimento:</strong> ${data.estabelecimento || 'Não identificado'}</li>
+                    <li><strong>CNPJ:</strong> ${data.cnpj || 'Não identificado'}</li>
+                    <li><strong>Data:</strong> ${data.data || 'Não identificada'}</li>
+                    <li><strong>Categoria:</strong> ${data.categoria || 'Não identificada'}</li>
+                    <li class="total-value"><strong>Valor Total:</strong> R$ ${data.valor_total || '0,00'}</li>
+                </ul>
+                <p class="success-message">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    Despesa salva com sucesso no sistema.
+                </p>
+            </div>`;
+        }
+      }
+    </script>
+    <style>
+        :root {
+            --font-family: 'Inter', sans-serif;
+            --bg-color: #0D0C12;
+            --bg-glass-card: rgba(30, 30, 47, 0.6); 
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --text-primary: #f0f0f5;
+            --text-secondary: #a8a8b3;
+            --accent-primary: #8257e5;
+            --accent-secondary: #007BFF;
+            --success-color: #04d361;
+            --danger-color: #e83f5b;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+        html.light-theme {
+            --bg-color: #f0f0f5;
+            --bg-glass-card: rgba(255, 255, 255, 0.7); 
+            --border-glass: rgba(0, 0, 0, 0.1);
+            --text-primary: #121214;
+            --text-secondary: #6c6c80;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: var(--font-family); 
+            background-color: var(--bg-color); 
+            color: var(--text-primary); 
+            min-height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            padding: 1.5rem;
+            background-image: radial-gradient(circle at 1% 1%, var(--accent-primary, #8257e5) 0.5px, transparent 0), radial-gradient(circle at 99% 99%, var(--accent-secondary, #007BFF) 0.5px, transparent 0);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .receipt-page { 
+            width: 100%; 
+            max-width: 600px;
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .glass-pane { 
+            background-color: var(--bg-glass-card); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px); 
+            border: 1px solid var(--border-glass); 
+            border-radius: var(--radius-lg); 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            padding: 2.5rem;
+        }
+        h1 {
+            font-weight: 700;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        p {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            color: var(--text-secondary);
+        }
+        .action-button { 
+            display: inline-flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 1rem 1.8rem;
+            border-radius: var(--radius-md); 
+            border: none;
+            cursor: pointer; 
+            background: var(--accent-primary); 
+            color: white; 
+            font-weight: 600; 
+            font-size: 1rem;
+            transition: all 0.3s ease; 
+            box-shadow: 0 5px 20px rgba(130, 87, 229, 0.3);
+        }
+        .action-button:hover { 
+            background: #996DFF;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(130, 87, 229, 0.4);
+        }
+        .result-area {
+            margin-top: 2rem;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #image-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: var(--radius-md);
+            margin-bottom: 1.5rem;
+            border: 2px solid var(--border-glass);
+        }
+        .report-card {
+            width: 100%;
+            background: rgba(0,0,0,0.15);
+            border-radius: var(--radius-md);
+            padding: 1.5rem;
+            text-align: left;
+            line-height: 1.7;
+            animation: slideUp 0.5s ease-out;
+            border: 1px solid var(--border-glass);
+        }
+        html.light-theme .report-card { background: rgba(255,255,255,0.5); }
+        .report-card h4 {
+            margin-bottom: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .report-card ul { list-style: none; }
+        .report-card li { margin-bottom: 0.5rem; font-size: 1rem; }
+        .report-card strong { color: var(--text-primary); }
+        .report-card .total-value { font-size: 1.2rem; color: var(--success-color); font-weight: 600; margin-top: 0.8rem; }
+        
+        .success-message, .status-error {
+            margin-top: 1rem;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .success-message { color: var(--success-color); }
+        .status-error { color: var(--danger-color); }
+        .report-card.status-error { background: rgba(232, 63, 91, 0.1); border-color: var(--danger-color); }
+
+        .back-link { 
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2rem; 
+            color: var(--text-secondary); 
+            text-decoration: none; 
+            font-size: 0.95rem; 
+            transition: color 0.3s;
+        }
+        .back-link:hover { color: var(--text-primary); }
+
+        .spinner {
+            margin: 1rem auto;
+            border: 4px solid var(--border-glass);
+            border-top: 4px solid var(--accent-primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideUp { from {opacity: 0; transform: translateY(20px);} to {opacity: 1; transform: translateY(0);} }
+    </style>
+</head>
+<body> 
+<div class="receipt-page">
+    <div class="glass-pane">
+        <h1>Análise de Recibos</h1>
+        <p>Envie a foto do recibo e extraia automaticamente as informações com IA.</p>
+
+        <button id="upload-button" class="action-button">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21.2 15c.7-1.2 1-2.5.7-3.9-.6-2.8-3.4-5-6.4-5-1.5 0-2.9.6-4 1.5M12 11v8M16 15l-4 4-4-4"/></svg>
+            Enviar Recibo
+        </button>
+        <input type="file" id="file-input" accept="image/*" style="display:none;" />
+
+        <div class="result-area">
+            <img id="image-preview" src="#" alt="Pré-visualização do Recibo" style="display:none;">
+            <div id="result-container"><p>Aguardando um arquivo...</p></div>
+        </div>
+
+        <a href="index.html" class="back-link">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+            Voltar para o assistente
+        </a>
+    </div>
+</div>
+</body>
+</html>

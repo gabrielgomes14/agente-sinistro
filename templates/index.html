@@ -12,7 +12,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
     <script type="module">
-      // Firebase SDK
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
       import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
       import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
@@ -41,13 +40,9 @@
         handleAuthState();
         loadUserHistory();
         startNewConversation();
-        document.getElementById("btn-nova-conversa")
-          .addEventListener("click", startNewConversation);
+        document.getElementById("btn-nova-conversa").addEventListener("click", startNewConversation);
       });
 
-      // ==============================================
-      // 1. CONFIGURAÇÃO E VARIÁVEIS GLOBAIS
-      // ==============================================
       const BACKEND_URL = "https://agente-sinistro-api.onrender.com";
       const chatLog = document.getElementById('chat-log');
       const chatArea = document.getElementById('chat-area');
@@ -58,8 +53,6 @@
       const sidebarToggleBtnInside = document.getElementById('sidebar-toggle-btn-inside');
       const sidebarToggleBtnOutside = document.getElementById('sidebar-toggle-btn-outside');
       const micBtn = document.getElementById('mic-btn');
-      const userPhotoEl = document.getElementById('user-photo');
-      const userNameEl = document.getElementById('user-name');
 
       let conversationState = {};
       let recognition = null;
@@ -71,14 +64,8 @@
           { key: 'relato', text: 'Por último, descreva o <strong>Relato do Motorista</strong> sobre o que aconteceu.' }
       ];
 
-      // ==============================================
-      // 2. FUNÇÕES DO CHAT
-      // ==============================================
       function addMessage(sender, content, isHtml = false) {
-          if (isWelcoming) {
-              chatLog.innerHTML = '';
-              isWelcoming = false;
-          }
+          if (isWelcoming) { chatLog.innerHTML = ''; isWelcoming = false; }
           chatArea.classList.remove('is-welcoming');
           const existingTyping = document.getElementById('typing-indicator');
           if(existingTyping) existingTyping.remove();
@@ -97,7 +84,7 @@
           chatArea.classList.add('is-welcoming');
           isWelcoming = true;
           conversationState = { mode: 'qa', currentStep: 0, isExpectingAnswer: false, collectedData: {} };
-          const welcomeHTML = `<div class="welcome-message"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="var(--accent-primary)" stroke-width="1.5"></path><path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="var(--accent-primary)" stroke-width="1.5"></path></svg><h3>Assistente de Frota</h3></div>`;
+          const welcomeHTML = `<div class="welcome-message"><svg width="64" height="64" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" stroke="var(--accent-primary)" stroke-width="1.5"></path><path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="var(--accent-primary)" stroke-width="1.5"></path></svg><h3>Assistente de Frota</h3></div>`;
           chatLog.innerHTML = welcomeHTML;
           chatInput.value = '';
           chatInput.placeholder = 'Pergunte sobre gestão de frotas ou envie uma imagem...';
@@ -113,61 +100,35 @@
           chatArea.scrollTop = chatArea.scrollHeight;
       }
 
-      // ==============================================
-      // 3. LÓGICA DOS MODOS DE CONVERSA E TEMA
-      // ==============================================
       function setupTheme() {
-          const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
           const savedTheme = localStorage.getItem('theme');
-
-          if (savedTheme) {
-              document.body.classList.toggle('light-theme', savedTheme === 'light');
-          } else if (prefersDark) {
-              document.body.classList.remove('light-theme');
-          } else {
-              document.body.classList.add('light-theme');
-          }
-
+          if (savedTheme) { document.documentElement.className = savedTheme === 'light' ? 'light-theme' : ''; }
+          else { document.documentElement.className = prefersDark ? '' : 'light-theme'; }
+          
           themeToggleBtn.addEventListener('click', () => {
-              const isLight = document.body.classList.toggle('light-theme');
+              const isLight = document.documentElement.classList.toggle('light-theme');
               localStorage.setItem('theme', isLight ? 'light' : 'dark');
           });
       }
       
       async function sendFleetManagementQuery(userText) {
-          addMessage('user', userText);
-          showTypingIndicator();
-          chatInput.disabled = true;
+          addMessage('user', userText); showTypingIndicator(); chatInput.disabled = true;
           try {
-              const response = await fetch(`${BACKEND_URL}/chat`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ question: userText })
-              });
-              if (!response.ok) throw new Error(`Erro na comunicação com o servidor: ${response.statusText}`);
-              const data = await response.json();
-              addMessage('ai', data.answer);
-          } catch (error) {
-              console.error("Erro detalhado ao chamar o backend:", error);
-              addMessage('ai', `Desculpe, ocorreu um erro. Verifique o console do navegador (F12) para mais detalhes.`);
-          } finally {
-              chatInput.disabled = false;
-              chatInput.focus();
-          }
+              const response = await fetch(`${BACKEND_URL}/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: userText }) });
+              if (!response.ok) throw new Error(`Erro na comunicação: ${response.statusText}`);
+              const data = await response.json(); addMessage('ai', data.answer);
+          } catch (error) { console.error("Erro detalhado:", error); addMessage('ai', `Desculpe, ocorreu um erro.`); }
+          finally { chatInput.disabled = false; chatInput.focus(); }
       }
 
       function startAnalysisFlow(files) {
           conversationState.mode = 'analysis';
           conversationState.collectedData.imagens = files;
-          chatLog.innerHTML = '';
-          isWelcoming = false;
-
+          chatLog.innerHTML = ''; isWelcoming = false;
           let imageHTML = '<div class="uploaded-images-container">';
-          Array.from(files).forEach(file => {
-              imageHTML += `<img src="${URL.createObjectURL(file)}" class="uploaded-image" alt="Dano no veículo">`;
-          });
+          Array.from(files).forEach(file => { imageHTML += `<img src="${URL.createObjectURL(file)}" class="uploaded-image" alt="Dano no veículo">`; });
           imageHTML += '</div>';
-
           addMessage('user', imageHTML, true);
           askNextAnalysisQuestion();
       }
@@ -175,15 +136,11 @@
       function askNextAnalysisQuestion() {
           if (conversationState.currentStep < analysisQuestions.length) {
               const question = analysisQuestions[conversationState.currentStep];
-              addMessage('ai', question.text, true);
-              chatInput.disabled = false;
-              chatInput.placeholder = 'Responda aqui e pressione Enter...';
-              chatInput.focus();
+              addMessage('ai', question.text, true); chatInput.disabled = false; chatInput.placeholder = 'Responda aqui...'; chatInput.focus();
               conversationState.isExpectingAnswer = true;
           } else {
-              chatInput.disabled = true;
-              chatInput.placeholder = 'Todos os dados foram coletados.';
-              addMessage('ai', 'Obrigado. Reuni as informações. Clique para iniciar a análise completa.', true);
+              chatInput.disabled = true; chatInput.placeholder = 'Dados coletados.';
+              addMessage('ai', 'Obrigado. Clique para iniciar a análise.', true);
               const btnHTML = `<button class="action-button" id="generate-report-btn">Analisar Sinistro</button>`;
               addMessage('ai', btnHTML, true);
               document.getElementById('generate-report-btn').onclick = () => {
@@ -203,27 +160,16 @@
           askNextAnalysisQuestion();
       }
 
-      // ==============================================
-      // 4. EVENT LISTENERS E FUNCIONALIDADES EXTRA
-      // ==============================================
-      
       chatInput.addEventListener('keydown', (event) => {
           if (event.key === 'Enter' && chatInput.value.trim() !== '') {
-              const userText = chatInput.value.trim();
-              chatInput.value = ''; // Limpa o input imediatamente
-
+              const userText = chatInput.value.trim(); chatInput.value = '';
               switch (conversationState.mode) {
-                  case 'analysis':
-                      processAnalysisAnswer(userText);
-                      break;
-                  case 'qa':
-                  default:
-                      sendFleetManagementQuery(userText);
-                      break;
+                  case 'analysis': processAnalysisAnswer(userText); break;
+                  case 'qa': default: sendFleetManagementQuery(userText); break;
               }
           }
       });
-
+      
       imageUploadBtn.addEventListener('click', () => hiddenFileInput.click());
       hiddenFileInput.addEventListener('change', (event) => {
           const files = event.target.files;
@@ -234,43 +180,27 @@
       });
 
       function toggleSidebar() {
-          if(window.innerWidth <= 768) {
-              document.body.classList.toggle('sidebar-open');
-          } else {
-              document.body.classList.toggle('sidebar-collapsed');
-          }
+          if(window.innerWidth <= 768) { document.body.classList.toggle('sidebar-open'); }
+          else { document.body.classList.toggle('sidebar-collapsed'); }
       }
       sidebarToggleBtnInside.addEventListener('click', toggleSidebar);
       sidebarToggleBtnOutside.addEventListener('click', toggleSidebar);
 
       micBtn.addEventListener('click', () => {
           const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-          if (!SpeechRecognition) {
-              alert("Seu navegador não suporta a funcionalidade de voz.");
-              return;
-          }
-          if (recognition && recognition.isRecording) {
-              recognition.stop();
-              return;
-          }
+          if (!SpeechRecognition) { alert("Seu navegador não suporta a funcionalidade de voz."); return; }
+          if (recognition && recognition.isRecording) { recognition.stop(); return; }
           recognition = new SpeechRecognition();
-          recognition.lang = 'pt-BR';
-          recognition.continuous = false;
-          recognition.interimResults = true;
-
+          recognition.lang = 'pt-BR'; recognition.continuous = false; recognition.interimResults = true;
           recognition.onstart = () => { recognition.isRecording = true; micBtn.classList.add('is-recording'); };
           recognition.onend = () => { recognition.isRecording = false; micBtn.classList.remove('is-recording'); };
           recognition.onerror = (event) => { console.error("Erro no reconhecimento de voz:", event.error); micBtn.classList.remove('is-recording'); };
-          
           let final_transcript = '';
           recognition.onresult = (event) => {
               let interim_transcript = '';
               for (let i = event.resultIndex; i < event.results.length; ++i) {
-                  if (event.results[i].isFinal) {
-                      final_transcript += event.results[i][0].transcript;
-                  } else {
-                      interim_transcript += event.results[i][0].transcript;
-                  }
+                  if (event.results[i].isFinal) { final_transcript += event.results[i][0].transcript; }
+                  else { interim_transcript += event.results[i][0].transcript; }
               }
               chatInput.value = final_transcript || interim_transcript;
               if(final_transcript) {
@@ -281,10 +211,6 @@
           };
           recognition.start();
       });
-
-      // ==============================================
-      // 5. LÓGICA DE BACKEND E FIREBASE (COM PDF)
-      // ==============================================
 
       async function convertFilesToBase64(files) {
           const base64Promises = Array.from(files).map(file => {
@@ -301,236 +227,125 @@
       async function generateAndDownloadPDF(reportData, imageSources) {
           const { jsPDF } = window.jspdf;
           const reportElement = document.createElement('div');
-          
-          reportElement.style.position = 'absolute';
-          reportElement.style.left = '-9999px';
-          reportElement.style.width = '700px';
-          reportElement.style.padding = '20px';
-          reportElement.style.fontFamily = 'Arial, sans-serif';
-          reportElement.style.color = '#000';
-          reportElement.style.backgroundColor = '#FFF';
-
+          reportElement.style.cssText = 'position:absolute; left:-9999px; width:700px; padding:20px; font-family:Arial,sans-serif; color:#000; background-color:#FFF;';
           let imagesHTML = '';
-          if (imageSources) {
-            imageSources.forEach(src => {
-                imagesHTML += `<img src="${src}" style="max-width: 150px; border-radius: 8px; margin: 5px; border: 1px solid #ccc;">`;
-            });
-          }
-          
-          reportElement.innerHTML = `
-              <h1 style="font-size: 24px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px;">Relatório de Sinistro</h1>
-              <div style="display: flex; justify-content: space-between; font-size: 14px; margin-top: 20px;">
-                  <p><strong>Veículo:</strong> ${reportData.carModel || 'Não informado'}</p>
-                  <p><strong>Local:</strong> ${reportData.location || 'Não informado'}</p>
-              </div>
-              <hr style="margin: 20px 0;">
-              
-              <h2 style="font-size: 18px; color: #444;">Análise da IA</h2>
-              <ul style="list-style-type: none; padding: 0; font-size: 14px;">
-                  <li style="margin-bottom: 10px;"><strong>Nível do Dano:</strong> ${reportData.analiseGeral?.nivelDano || 'N/A'}</li>
-                  <li style="margin-bottom: 10px;"><strong>Área Afetada:</strong> ${reportData.analiseGeral?.areaVeiculo || 'N/A'}</li>
-                  <li style="margin-bottom: 10px;"><strong>Tempo Estimado de Reparo:</strong> ${reportData.estimativas?.tempoReparo || 'N/A'}</li>
-              </ul>
-
-              <h2 style="font-size: 18px; color: #444; margin-top: 20px;">Descrição dos Danos</h2>
-              <p style="font-size: 14px; line-height: 1.6;">${reportData.descricaoDanos || 'N/A'}</p>
-
-              <h2 style="font-size: 18px; color: #444; margin-top: 20px;">Relato do Motorista</h2>
-              <p style="font-size: 14px; line-height: 1.6; font-style: italic;">"${reportData.driverReport}"</p>
-
-              <h2 style="font-size: 18px; color: #444; margin-top: 20px;">Evidências (Imagens)</h2>
-              <div>${imagesHTML}</div>
-          `;
-          
+          if (imageSources) { imageSources.forEach(src => { imagesHTML += `<img src="${src}" style="max-width:150px; border-radius:8px; margin:5px; border:1px solid #ccc;">`; }); }
+          reportElement.innerHTML = `<h1>Relatório de Sinistro</h1><div><p><strong>Veículo:</strong> ${reportData.carModel||'N/A'}</p><p><strong>Local:</strong> ${reportData.location||'N/A'}</p></div><hr><h2>Análise da IA</h2><ul><li><strong>Nível do Dano:</strong> ${reportData.analiseGeral?.nivelDano||'N/A'}</li><li><strong>Área Afetada:</strong> ${reportData.analiseGeral?.areaVeiculo||'N/A'}</li><li><strong>Tempo de Reparo:</strong> ${reportData.estimativas?.tempoReparo||'N/A'}</li></ul><h2>Descrição dos Danos</h2><p>${reportData.descricaoDanos||'N/A'}</p><h2>Relato do Motorista</h2><p>"${reportData.driverReport}"</p><h2>Evidências</h2><div>${imagesHTML}</div>`;
           document.body.appendChild(reportElement);
-
           const canvas = await html2canvas(reportElement, { useCORS: true });
           const imgData = canvas.toDataURL('image/png');
-          
           const pdf = new jsPDF('p', 'mm', 'a4');
           const pdfWidth = pdf.internal.pageSize.getWidth();
           const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-
-          pdf.save(`relatorio-sinistro-${reportData.carModel || 'veiculo'}.pdf`);
+          pdf.save(`relatorio-sinistro-${reportData.carModel||'veiculo'}.pdf`);
           document.body.removeChild(reportElement);
       }
 
       async function enviarDadosParaAnalise(data) {
-          addMessage('ai', 'Analisando as imagens e os dados...');
-          showTypingIndicator();
+          addMessage('ai', 'Analisando as imagens e os dados...'); showTypingIndicator();
           try {
               const formData = new FormData();
               const [modelo, ...anoParts] = data.modelo.split(' ');
-              
-              Array.from(data.imagens).forEach(file => {
-                  formData.append('imagens', file);
-              });
-              formData.append('localizacao', data.cidade);
-              formData.append('modelo', modelo || data.modelo);
-              formData.append('ano', anoParts.join(' ') || 'N/A');
-              formData.append('relato_motorista', data.relato);
-
+              Array.from(data.imagens).forEach(file => formData.append('imagens', file));
+              formData.append('localizacao', data.cidade); formData.append('modelo', modelo || data.modelo);
+              formData.append('ano', anoParts.join(' ') || 'N/A'); formData.append('relato_motorista', data.relato);
               const imageBase64Strings = await convertFilesToBase64(data.imagens);
-              
               const response = await fetch(`${BACKEND_URL}/analisar-sinistro`, { method: 'POST', body: formData });
               if (!response.ok) throw new Error(`Erro na API de análise: ${response.statusText}`);
-              
               const reportData = await response.json();
-              
               addMessage('ai', 'Análise completa! Aqui está o seu relatório:', true);
-              
-              const fullReportData = { 
-                  ...reportData, 
-                  driverReport: data.relato, 
-                  carModel: data.modelo, 
-                  location: data.cidade 
-              };
-              
+              const fullReportData = { ...reportData, driverReport: data.relato, carModel: data.modelo, location: data.cidade };
               addMessage('ai', gerarRelatorioHTML(fullReportData, imageBase64Strings), true);
-              
-              setTimeout(() => {
-                  addMessage('ai', 'Espero que esta análise seja útil! Se precisar de mais alguma coisa, pode perguntar.');
-              }, 2500);
-
+              setTimeout(() => addMessage('ai', 'Espero que esta análise seja útil!'), 2500);
               saveReportToFirestore(fullReportData, imageBase64Strings);
-          } catch(error) {
-              console.error("Erro detalhado na análise:", error);
-              addMessage('ai', `Ocorreu um erro na análise do sinistro. Verifique o console (F12) para detalhes.`);
-          }
+          } catch(error) { console.error("Erro detalhado na análise:", error); addMessage('ai', `Ocorreu um erro na análise do sinistro.`); }
       }
 
       function gerarRelatorioHTML(reportData, imageSources) {
           const reportId = `report-${Date.now()}`;
-
           let imagesHTML = '';
-          if (imageSources && imageSources.length > 0) {
-              imageSources.forEach(src => {
-                  imagesHTML += `<img src="${src}" style="max-width: 100px; border-radius: 8px; margin: 5px; cursor: pointer;" onclick="window.open('${src}')">`;
-              });
-          }
-          
-          const html = `
-              <div id="${reportId}" class="report-card">
-                  <h4>Relatório de Sinistro - ${reportData.carModel || 'Veículo'}</h4>
-                  
-                  <p><strong>Análise Geral:</strong></p>
-                  <ul>
-                      <li><strong>Área do Veículo:</strong> ${reportData.analiseGeral?.areaVeiculo || 'N/A'}</li>
-                      <li><strong>Nível do Dano:</strong> ${reportData.analiseGeral?.nivelDano || 'N/A'}</li>
-                      <li><strong>Nível de Urgência:</strong> ${reportData.analiseGeral?.nivelUrgencia || 'N/A'}</li>
-                  </ul>
-
-                  <p><strong>Descrição Detalhada:</strong><br><em>"${reportData.descricaoDanos || 'Nenhuma descrição fornecida.'}"</em></p>
-                  <p><strong>Coerência do Relato:</strong><br><em>"${reportData.coerenciaRelato || 'N/A'}"</em></p>
-                  <p><strong>Estimativas:</strong></p>
-                  <ul><li><strong>Tempo de Reparo:</strong> ${reportData.estimativas?.tempoReparo || 'N/A'}</li></ul>
-
-                  <div style="margin-top: 10px;">${imagesHTML}</div>
-                  <button class="action-button" data-report-id="${reportId}">Baixar Relatório (PDF)</button>
-              </div>
-          `;
-
+          if (imageSources?.length > 0) { imageSources.forEach(src => { imagesHTML += `<img src="${src}" style="max-width:100px; border-radius:8px; margin:5px; cursor:pointer;" onclick="window.open('${src}')">`; }); }
+          const html = `<div id="${reportId}" class="report-card"><h4>Relatório - ${reportData.carModel||'Veículo'}</h4><p><strong>Análise:</strong></p><ul><li><strong>Área:</strong> ${reportData.analiseGeral?.areaVeiculo||'N/A'}</li><li><strong>Dano:</strong> ${reportData.analiseGeral?.nivelDano||'N/A'}</li><li><strong>Urgência:</strong> ${reportData.analiseGeral?.nivelUrgencia||'N/A'}</li></ul><p><strong>Descrição:</strong><br><em>"${reportData.descricaoDanos||'N/A'}"</em></p><p><strong>Estimativas:</strong></p><ul><li><strong>Reparo:</strong> ${reportData.estimativas?.tempoReparo||'N/A'}</li></ul><div>${imagesHTML}</div><button class="action-button" data-report-id="${reportId}">Baixar PDF</button></div>`;
           setTimeout(() => {
               const downloadBtn = document.querySelector(`button[data-report-id="${reportId}"]`);
               if (downloadBtn) {
                   downloadBtn.addEventListener('click', () => {
                       downloadBtn.textContent = 'Gerando...';
-                      generateAndDownloadPDF(reportData, imageSources).finally(() => {
-                          downloadBtn.textContent = 'Baixar Relatório (PDF)';
-                      });
+                      generateAndDownloadPDF(reportData, imageSources).finally(() => { downloadBtn.textContent = 'Baixar PDF'; });
                   });
               }
           }, 100);
-
           return html;
       }
 
       async function saveReportToFirestore(reportData, imageBase64Strings) {
         try {
             const docData = {
-                carModel: reportData.carModel,
-                location: reportData.location,
-                driverReport: reportData.driverReport,
-                images: imageBase64Strings,
-                createdAt: window.serverTimestamp(),
-                analiseGeral: reportData.analiseGeral || null,
-                coerenciaRelato: reportData.coerenciaRelato || null,
-                descricaoDanos: reportData.descricaoDanos || null,
-                estimativas: reportData.estimativas || null,
-                pecasNecessarias: reportData.pecasNecessarias || null
+                carModel: reportData.carModel, location: reportData.location,
+                driverReport: reportData.driverReport, images: imageBase64Strings,
+                createdAt: serverTimestamp(), analiseGeral: reportData.analiseGeral || null,
+                coerenciaRelato: reportData.coerenciaRelato || null, descricaoDanos: reportData.descricaoDanos || null,
+                estimativas: reportData.estimativas || null, pecasNecessarias: reportData.pecasNecessarias || null
             };
-            const collectionRef = window.collection(window.db, 'analyses', "public_shared_history", 'reports');
-            await window.addDoc(collectionRef, docData);
-            console.log("Relatório salvo no Firestore com sucesso!");
-        } catch (error) {
-            console.error("Erro ao salvar relatório no Firestore: ", error);
-        }
+            const collectionRef = collection(db, 'analyses', "public_shared_history", 'reports');
+            await addDoc(collectionRef, docData);
+            console.log("Relatório salvo no Firestore!");
+        } catch (error) { console.error("Erro ao salvar relatório no Firestore: ", error); }
       }
 
       function handleAuthState() {
-          window.onAuthStateChanged(window.auth, user => {
+          onAuthStateChanged(auth, user => {
               if (user) {
                   const photo = user.photoURL || `data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZHRoPSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMCIgcj0iMyIvPjxwYXRoIGQ9Im03IDE5IDUtMy43NUw3IDE5eiIvPjwvc3ZnPg==`;
                   const name = user.displayName || 'Usuário';
-                  userPhotoEl.src = photo;
-                  userNameEl.textContent = name;
-              } else {
-                  window.location.href = 'landing.html';
-              }
+                  document.getElementById('user-photo').src = photo;
+                  document.getElementById('user-name').textContent = name;
+              } else { window.location.href = 'landing.html'; }
           });
       }
 
-      window.sairParaAccount = async () => { try { await window.signOut(window.auth); } catch (error) { console.error("Erro ao fazer logout:", error); } };
+      window.sairParaAccount = async () => { try { await signOut(auth); } catch (error) { console.error("Erro ao fazer logout:", error); } };
 
       async function deleteHistoryItem(reportId) {
           if (!reportId) return;
           try {
-              const reportRef = window.doc(window.db, 'analyses', "public_shared_history", 'reports', reportId);
-              await window.deleteDoc(reportRef);
-          } catch (error) {
-              console.error("Erro ao excluir item do histórico:", error);
-              alert("Não foi possível excluir o item.");
-          }
+              const reportRef = doc(db, 'analyses', "public_shared_history", 'reports', reportId);
+              await deleteDoc(reportRef);
+          } catch (error) { console.error("Erro ao excluir item:", error); alert("Não foi possível excluir."); }
       }
 
       function loadUserHistory() {
           const historyList = document.getElementById('history-list');
-          const q = window.query(window.collection(window.db, 'analyses', "public_shared_history", 'reports'), window.orderBy('createdAt', 'desc'));
+          const q = query(collection(db, 'analyses', "public_shared_history", 'reports'), orderBy('createdAt', 'desc'));
           
-          window.onSnapshot(q, (snapshot) => {
+          onSnapshot(q, (snapshot) => {
               historyList.innerHTML = '';
-              if (snapshot.empty) {
-                  historyList.innerHTML = `<li class="history-empty">Nenhum sinistro registrado.</li>`;
-              }
-              snapshot.forEach(doc => {
-                  const report = doc.data();
+              if (snapshot.empty) { historyList.innerHTML = `<li class="history-empty">Nenhum sinistro registrado.</li>`; }
+              snapshot.forEach(docSnapshot => {
+                  const report = docSnapshot.data();
                   const li = document.createElement('li');
                   li.className = 'history-item';
-                  li.dataset.id = doc.id;
+                  li.dataset.id = docSnapshot.id;
                   li.innerHTML = `
-                      <span class="history-item-text" title="${report.carModel || 'Análise Anterior'}">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      <span class="history-item-text" title="${report.carModel || 'Análise'}">
+                          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                           ${report.carModel || 'Análise Anterior'}
                       </span>
                       <button class="delete-history-btn" title="Excluir">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18" stroke="currentColor" stroke-width="2"/><path d="M6 6L18 18" stroke="currentColor" stroke-width="2"/></svg>
+                          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M18 6L6 18" stroke="currentColor" stroke-width="2"/><path d="M6 6L18 18" stroke="currentColor" stroke-width="2"/></svg>
                       </button>`;
                   
                   li.querySelector('.history-item-text').onclick = () => {
                       if(window.innerWidth <= 768) { document.body.classList.remove('sidebar-open'); }
-                      startNewConversation();
-                      chatLog.innerHTML = '';
-                      isWelcoming = false;
-                      addMessage('ai', `Exibindo relatório salvo para <strong>${report.carModel || 'Análise Anterior'}</strong>.`, true);
+                      startNewConversation(); chatLog.innerHTML = ''; isWelcoming = false;
+                      addMessage('ai', `Exibindo relatório salvo para <strong>${report.carModel || 'Análise'}</strong>.`, true);
                       addMessage('ai', gerarRelatorioHTML(report, report.images || []), true);
                   };
 
                   li.querySelector('.delete-history-btn').onclick = (e) => {
                       e.stopPropagation();
-                      if (confirm(`Tem certeza que deseja excluir a análise para "${report.carModel}"?`)) {
-                          deleteHistoryItem(doc.id);
-                      }
+                      if (confirm(`Excluir a análise para "${report.carModel}"?`)) { deleteHistoryItem(docSnapshot.id); }
                   };
                   historyList.appendChild(li);
               });
@@ -555,7 +370,7 @@
             --ai-message-bg: rgba(60, 58, 86, 0.6);
         }
         
-        body.light-theme {
+        html.light-theme {
             --bg-color: #F9F9FB;
             --bg-glass: rgba(255, 255, 255, 0.7);
             --border-glass: rgba(0, 0, 0, 0.08);
@@ -578,7 +393,9 @@
         .app-layout { display: flex; height: 100vh; padding: 16px; gap: 16px; }
         .glass-pane { background-color: var(--bg-glass); backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); transition: all 0.3s ease; }
 
-        /* --- SIDEBAR --- */
+        .header-btn { text-decoration: none; background: none; border: 1px solid var(--border-glass); color: var(--text-secondary); cursor: pointer; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
+        .header-btn:hover { color: var(--text-primary); background-color: rgba(255,255,255,0.1); border-color: rgba(255, 255, 255, 0.15); }
+
         .sidebar { width: 280px; padding: 16px; display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s ease, width 0.3s ease; }
         body.sidebar-collapsed .sidebar { width: 0; padding: 16px 0; overflow: hidden; border: none; }
         .sidebar-header { display: flex; align-items: center; margin-bottom: 24px; gap: 8px; }
@@ -587,10 +404,11 @@
         .sidebar-toggle-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 8px; border-radius: var(--radius-full); display: flex; transition: background-color 0.2s; }
         .sidebar-toggle-btn:hover { background-color: rgba(255,255,255,0.1); }
         .sidebar h3 { font-size: 14px; font-weight: 500; color: var(--text-secondary); margin: 24px 0 12px 16px; }
-        .history-list { list-style: none; overflow-y: auto; flex-grow: 1; }
-        .history-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; border-radius: var(--radius-md); cursor: pointer; margin-bottom: 4px; transition: background-color 0.2s; }
-        .history-item-text { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; display: flex; align-items: center; gap: 10px; }
-        .history-item:hover, .history-item.active { background-color: rgba(255,255,255,0.08); }
+        .history-list, .module-list { list-style: none; padding: 0; }
+        .history-item, .module-item a { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: var(--radius-md); text-decoration: none; color: var(--text-primary); font-size: 14px; font-weight: 500; cursor: pointer; margin-bottom: 4px; transition: background-color 0.2s; }
+        .history-item { justify-content: space-between; }
+        .history-item-text { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 10px; }
+        .history-item:hover, .module-item a:hover { background-color: rgba(255,255,255,0.08); }
         .history-item .delete-history-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; visibility: hidden; opacity: 0; transition: all 0.2s; }
         .history-item:hover .delete-history-btn { visibility: visible; opacity: 1; }
         .delete-history-btn:hover { color: var(--danger-color); }
@@ -601,10 +419,10 @@
         .user-photo { height: 32px; width: 32px; border-radius: 50%; object-fit: cover; }
         .user-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* --- ÁREA PRINCIPAL --- */
         .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
         .main-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; flex-shrink: 0; border-bottom: 1px solid var(--border-glass); }
         .header-title { font-weight: 500; font-size: 1rem; color: var(--text-primary); }
+        .header-controls { display: flex; align-items: center; gap: 8px; }
         .header-controls button { background: none; border: 1px solid var(--border-glass); color: var(--text-secondary); cursor: pointer; padding: 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
         .header-controls button:hover { color: var(--text-primary); background-color: rgba(255,255,255,0.1); border-color: rgba(255, 255, 255, 0.15); }
         .chat-area { flex-grow: 1; overflow-y: auto; padding: 24px; }
@@ -630,7 +448,7 @@
         .input-icons button:hover { background-color: rgba(255,255,255,0.1); color: var(--text-primary); }
         .input-icons button.is-recording { color: var(--danger-color); animation: pulse 1.5s infinite; }
         .action-button { background: var(--accent-primary); color: #ffffff; border: none; padding: 10px 20px; border-radius: var(--radius-md); font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
-        .action-button:hover { background-color: #9333ea; }
+        .action-button:hover { background-color: #a855f7; }
         .report-card { border: 1px solid var(--border-glass); padding: 16px; border-radius: var(--radius-md); text-align: left; }
         .report-card h4 { font-weight: 600; margin-bottom: 12px; }
         .report-card p { font-size: 14px; margin-top: 12px; }
@@ -638,12 +456,9 @@
         .report-card em { color: var(--text-secondary); }
         .report-card button { margin-top: 16px; }
 
-        .typing-indicator span { height: 8px; width: 8px; background-color: var(--text-secondary); border-radius: 50%; display: inline-block; animation: wave 1.3s linear infinite; }
-        @keyframes wave { 0%, 60%, 100% { transform: initial; } 30% { transform: translateY(-8px); } }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
 
-        /* --- RESPONSIVIDADE --- */
         @media (max-width: 768px) {
             .app-layout { padding: 0; gap: 0; }
             .sidebar { position: absolute; z-index: 100; height: 100%; border-radius: 0; transform: translateX(-100%); }
@@ -667,11 +482,22 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 4L9 12L15 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </button>
         </div>
+
+        <h3>Módulos</h3>
+        <ul class="module-list">
+            <li class="module-item">
+                <a href="recibos.html">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line></svg>
+                    Analisar Recibos
+                </a>
+            </li>
+        </ul>
+
         <h3>Histórico</h3>
         <ul class="history-list" id="history-list"></ul>
         <div class="sidebar-footer">
             <a href="#" onclick="sairParaAccount()">
-                <img id="user-photo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZHRoPSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjEwIi8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMCIgcj0iMyIvPjxwYXRoIGQ9Im03IDE5IDUtMy43NUw3IDE5eiIvPjwvc3ZnPg==" alt="Foto do Usuário" class="user-photo">
+                <img id="user-photo" src="" alt="Foto do Usuário" class="user-photo">
                 <span id="user-name" class="user-name">Carregando...</span>
             </a>
         </div>

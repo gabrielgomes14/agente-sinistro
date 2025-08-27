@@ -59,7 +59,8 @@ class FirebaseService:
         if not bucket: raise HTTPException(status_code=500, detail="Firebase Storage não inicializado.")
         urls = []
         for file in files:
-            filename = f"sinistros/{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+            # Generaliza a pasta de upload
+            filename = f"uploads/{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
             blob = bucket.blob(filename)
             file.file.seek(0)
             blob.upload_from_file(file.file, content_type=file.content_type)
